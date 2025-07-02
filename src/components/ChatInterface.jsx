@@ -15,7 +15,8 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     getCurrentUserPolicy, 
     isAppAllowed, 
     addActiveConnection,
-    removeActiveConnection 
+    removeActiveConnection,
+    addUserIntegration
   } = usePolicy()
   
   const [messages, setMessages] = useState([
@@ -113,6 +114,9 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
     // Step 3: Success and Policy Application
     const connectionId = 'conn_' + Date.now()
+    const now = new Date().toISOString()
+    
+    // Add to active connections for immediate display
     const connection = {
       id: connectionId,
       user: 'Demo User',
@@ -121,8 +125,26 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       status: 'Active',
       expiresAt: userPolicy.autoDisconnect ? 'Will auto-disconnect' : '24 hours'
     }
-
     addActiveConnection(connection)
+
+    // Add to user integration history
+    const userIntegration = {
+      id: connectionId,
+      app: 'notion',
+      connectedAt: now,
+      lastActivity: now,
+      status: userPolicy.autoDisconnect ? 'inactive' : 'active',
+      ...(userPolicy.autoDisconnect 
+        ? { reason: 'auto-disconnect policy' }
+        : { expiresAt: userPolicy.connectionDuration === 'persistent' ? 'persistent' : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }
+      )
+    }
+    
+    // Add to demo user's integration history
+    addUserIntegration('demo-user', userIntegration)
+    
+    // Update demo user's user group to match current selection
+    // This would be handled by the policy context in a real implementation
 
     if (targetUrl) {
       addMessage(`✅ Content successfully added to your Notion page!`, 'assistant')

@@ -84,7 +84,90 @@ export const PolicyProvider = ({ children }) => {
     },
     
     // Active connections (for demo purposes)
-    activeConnections: []
+    activeConnections: [],
+    
+    // User integration history
+    users: {
+      'john-smith': {
+        id: 'john-smith',
+        name: 'John Smith',
+        email: 'john.smith@company.com',
+        userGroup: 'marketing',
+        integrations: [
+          {
+            id: 'conn_1',
+            app: 'notion',
+            connectedAt: '2024-01-15T14:30:00Z',
+            lastActivity: '2024-01-15T14:35:00Z',
+            status: 'inactive',
+            reason: 'auto-disconnect policy'
+          },
+          {
+            id: 'conn_2',
+            app: 'slack',
+            connectedAt: '2024-01-15T15:00:00Z',
+            lastActivity: '2024-01-15T15:30:00Z',
+            status: 'active',
+            expiresAt: '2024-01-16T15:00:00Z'
+          }
+        ]
+      },
+      'sarah-johnson': {
+        id: 'sarah-johnson',
+        name: 'Sarah Johnson',
+        email: 'sarah.johnson@company.com',
+        userGroup: 'sales',
+        integrations: [
+          {
+            id: 'conn_3',
+            app: 'notion',
+            connectedAt: '2024-01-15T13:00:00Z',
+            lastActivity: '2024-01-15T16:00:00Z',
+            status: 'active',
+            expiresAt: '2024-01-16T13:00:00Z'
+          },
+          {
+            id: 'conn_4',
+            app: 'google-drive',
+            connectedAt: '2024-01-14T10:00:00Z',
+            lastActivity: '2024-01-14T17:00:00Z',
+            status: 'inactive',
+            reason: 'expired (24h policy)'
+          }
+        ]
+      },
+      'mike-chen': {
+        id: 'mike-chen',
+        name: 'Mike Chen',
+        email: 'mike.chen@company.com',
+        userGroup: 'customerSuccess',
+        integrations: [
+          {
+            id: 'conn_5',
+            app: 'notion',
+            connectedAt: '2024-01-15T09:00:00Z',
+            lastActivity: '2024-01-15T16:30:00Z',
+            status: 'active',
+            expiresAt: 'persistent'
+          },
+          {
+            id: 'conn_6',
+            app: 'zendesk',
+            connectedAt: '2024-01-15T11:00:00Z',
+            lastActivity: '2024-01-15T15:45:00Z',
+            status: 'active',
+            expiresAt: 'persistent'
+          }
+        ]
+      },
+      'demo-user': {
+        id: 'demo-user',
+        name: 'Demo User',
+        email: 'demo@company.com',
+        userGroup: 'marketing',
+        integrations: []
+      }
+    }
   })
 
   const [currentUserGroup, setCurrentUserGroup] = useState('marketing')
@@ -151,6 +234,48 @@ export const PolicyProvider = ({ children }) => {
     }))
   }
 
+  // Add user integration
+  const addUserIntegration = (userId, integration) => {
+    setPolicies(prev => ({
+      ...prev,
+      users: {
+        ...prev.users,
+        [userId]: {
+          ...prev.users[userId],
+          integrations: [...(prev.users[userId]?.integrations || []), integration]
+        }
+      }
+    }))
+  }
+
+  // Update user integration status
+  const updateUserIntegrationStatus = (userId, integrationId, updates) => {
+    setPolicies(prev => ({
+      ...prev,
+      users: {
+        ...prev.users,
+        [userId]: {
+          ...prev.users[userId],
+          integrations: prev.users[userId].integrations.map(integration =>
+            integration.id === integrationId
+              ? { ...integration, ...updates }
+              : integration
+          )
+        }
+      }
+    }))
+  }
+
+  // Get user integration history
+  const getUserIntegrationHistory = (userId) => {
+    return policies.users[userId]?.integrations || []
+  }
+
+  // Get all users with their integration history
+  const getAllUsersWithIntegrations = () => {
+    return Object.values(policies.users)
+  }
+
   // Get current user's policy
   const getCurrentUserPolicy = () => {
     const userGroup = policies.userGroups[currentUserGroup]
@@ -181,7 +306,11 @@ export const PolicyProvider = ({ children }) => {
     removeActiveConnection,
     emergencyDisconnectAll,
     getCurrentUserPolicy,
-    isAppAllowed
+    isAppAllowed,
+    addUserIntegration,
+    updateUserIntegrationStatus,
+    getUserIntegrationHistory,
+    getAllUsersWithIntegrations
   }
 
   return (

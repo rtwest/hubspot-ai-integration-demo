@@ -18,7 +18,8 @@ const AdminView = () => {
     updateGlobalEphemeral,
     updateUserGroupPolicy,
     updateApprovedApp,
-    emergencyDisconnectAll
+    emergencyDisconnectAll,
+    getAllUsersWithIntegrations
   } = usePolicy()
 
   const [activeTab, setActiveTab] = useState('policies')
@@ -37,6 +38,36 @@ const AdminView = () => {
       case 'approved': return <CheckCircle className="w-4 h-4 text-green-500" />
       case 'blocked': return <XCircle className="w-4 h-4 text-red-500" />
       default: return <Clock className="w-4 h-4 text-gray-500" />
+    }
+  }
+
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = Math.floor((now - date) / (1000 * 60 * 60))
+    
+    if (diffInHours < 1) return 'just now'
+    if (diffInHours === 1) return '1 hour ago'
+    if (diffInHours < 24) return `${diffInHours} hours ago`
+    
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays === 1) return '1 day ago'
+    return `${diffInDays} days ago`
+  }
+
+  const getIntegrationStatusDisplay = (integration) => {
+    if (integration.status === 'active') {
+      return {
+        text: 'STILL ACTIVE',
+        color: 'text-green-600 bg-green-100',
+        icon: <CheckCircle className="w-4 h-4 text-green-500" />
+      }
+    } else {
+      return {
+        text: 'NO LONGER ACTIVE',
+        color: 'text-red-600 bg-red-100',
+        icon: <XCircle className="w-4 h-4 text-red-500" />
+      }
     }
   }
 
@@ -250,35 +281,65 @@ const AdminView = () => {
             </div>
           </div>
 
-          {/* Active Connections */}
+          {/* User Integration History */}
           <div className="card p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Active Connections</h3>
-            {policies.activeConnections.length === 0 ? (
-              <div className="text-center py-8">
-                <Activity className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No active connections</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {policies.activeConnections.map((connection) => (
-                  <div key={connection.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{policies.approvedApps[connection.app]?.icon}</span>
-                      <div>
-                        <p className="font-medium text-gray-900">{connection.user}</p>
-                        <p className="text-sm text-gray-600">
-                          {connection.app} • Connected {connection.connectedAt}
-                        </p>
-                      </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">User Integration History</h3>
+            <div className="space-y-6">
+              {getAllUsersWithIntegrations().map((user) => (
+                <div key={user.id} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900">{user.name}</h4>
+                      <p className="text-sm text-gray-600">{user.email}</p>
+                      <p className="text-xs text-gray-500">{policies.userGroups[user.userGroup]?.name}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">{connection.status}</p>
-                      <p className="text-xs text-gray-500">{connection.expiresAt}</p>
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
+                        {user.integrations.length} integrations
+                      </span>
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  
+                  <div className="space-y-3">
+                    {user.integrations.map((integration) => {
+                      const statusDisplay = getIntegrationStatusDisplay(integration)
+                      const app = policies.approvedApps[integration.app]
+                      
+                      return (
+                        <div key={integration.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center space-x-3">
+                            <span className="text-2xl">{app?.icon}</span>
+                            <div>
+                              <p className="font-medium text-gray-900">{app?.name}</p>
+                              <p className="text-sm text-gray-600">
+                                Connected {formatTimeAgo(integration.connectedAt)} • 
+                                Last activity {formatTimeAgo(integration.lastActivity)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center space-x-2">
+                              {statusDisplay.icon}
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium ${statusDisplay.color}`}>
+                                {statusDisplay.text}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {integration.status === 'active' 
+                                ? integration.expiresAt === 'persistent' 
+                                  ? 'Persistent connection'
+                                  : `Expires ${formatTimeAgo(integration.expiresAt)}`
+                                : integration.reason
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
