@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { usePolicy } from '../context/PolicyContext'
+import { getAppIcon } from './AppIcons'
 import { 
   Send, 
   Link, 

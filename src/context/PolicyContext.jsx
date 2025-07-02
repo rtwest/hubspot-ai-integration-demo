@@ -43,43 +43,37 @@ export const PolicyProvider = ({ children }) => {
         name: 'Notion',
         status: 'approved',
         riskLevel: 'low',
-        defaultScopes: ['read', 'write'],
-        icon: '📝'
+        defaultScopes: ['read', 'write']
       },
       slack: {
         name: 'Slack',
         status: 'approved',
         riskLevel: 'low',
-        defaultScopes: ['chat:write'],
-        icon: '💬'
+        defaultScopes: ['chat:write']
       },
       'google-drive': {
         name: 'Google Drive',
         status: 'approved',
         riskLevel: 'medium',
-        defaultScopes: ['read', 'write'],
-        icon: '📁'
+        defaultScopes: ['read', 'write']
       },
       canva: {
         name: 'Canva',
         status: 'approved',
         riskLevel: 'low',
-        defaultScopes: ['read', 'write'],
-        icon: '🎨'
+        defaultScopes: ['read', 'write']
       },
       zendesk: {
         name: 'Zendesk',
         status: 'approved',
         riskLevel: 'medium',
-        defaultScopes: ['read', 'write'],
-        icon: '🎫'
+        defaultScopes: ['read', 'write']
       },
       'personal-dropbox': {
         name: 'Personal Dropbox',
         status: 'blocked',
         riskLevel: 'high',
-        reason: 'Personal storage + customer data risk',
-        icon: '📦'
+        reason: 'Personal storage + customer data risk'
       }
     },
     

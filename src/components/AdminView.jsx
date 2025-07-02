@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { usePolicy } from '../context/PolicyContext'
+import { getAppIcon } from './AppIcons'
 import { 
   Shield, 
   Users, 
@@ -205,8 +206,8 @@ const AdminView = () => {
                       </label>
                       <div className="flex flex-wrap gap-1">
                         {group.allowedApps.map(app => (
-                          <span key={app} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                            {policies.approvedApps[app]?.icon} {policies.approvedApps[app]?.name}
+                          <span key={app} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-900">
+                            {getAppIcon(app, "w-3 h-3 mr-1")} {policies.approvedApps[app]?.name}
                           </span>
                         ))}
                       </div>
@@ -224,14 +225,14 @@ const AdminView = () => {
           <h3 className="text-lg font-medium text-gray-900 mb-4">Approved Apps Catalog</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(policies.approvedApps).map(([key, app]) => (
-              <div key={key} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-2xl">{app.icon}</span>
-                    <h4 className="font-medium text-gray-900">{app.name}</h4>
+                              <div key={key} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center space-x-2">
+                      {getAppIcon(key, "w-6 h-6")}
+                      <h4 className="font-medium text-gray-900">{app.name}</h4>
+                    </div>
+                    {getStatusIcon(app.status)}
                   </div>
-                  {getStatusIcon(app.status)}
-                </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">Status:</span>
@@ -308,7 +309,7 @@ const AdminView = () => {
                       return (
                         <div key={integration.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center space-x-3">
-                            <span className="text-2xl">{app?.icon}</span>
+                            {getAppIcon(integration.app, "w-6 h-6")}
                             <div>
                               <p className="font-medium text-gray-900">{app?.name}</p>
                               <p className="text-sm text-gray-600">
