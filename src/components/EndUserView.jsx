@@ -59,11 +59,11 @@ const EndUserView = () => {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-120px)]">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-140px)]">
       {/* Left Panel - File Upload & Display */}
       <div className="space-y-6">
         {/* User Group Selector */}
-        <div className="card p-4">
+        <div className="card p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-medium text-gray-900">Current User Group</h3>
@@ -82,16 +82,16 @@ const EndUserView = () => {
         </div>
 
         {/* File Upload Area */}
-        <div className="card p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Upload Content to Share</h3>
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">Upload Content to Share</h3>
           
-          {!uploadedFile ? (
-            <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                isDragOver 
-                  ? 'border-primary-400 bg-primary-50' 
-                  : 'border-gray-300 hover:border-gray-400'
-              }`}
+                      {!uploadedFile ? (
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDragOver 
+                    ? 'border-black bg-gray-50' 
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -101,7 +101,7 @@ const EndUserView = () => {
                 Drag and drop a .md file here, or{' '}
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-primary-600 hover:text-primary-700 font-medium"
+                  className="text-black hover:text-gray-700 font-medium"
                 >
                   browse
                 </button>
@@ -117,23 +117,23 @@ const EndUserView = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <CheckCircle className="w-4 h-4 text-gray-600" />
                   <div>
-                    <p className="font-medium text-green-900">{uploadedFile.name}</p>
-                    <p className="text-sm text-green-700">Ready to share</p>
+                    <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                    <p className="text-sm text-gray-600">Ready to share</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    setUploadedFile(null)
-                    setFileContent('')
-                  }}
-                  className="text-green-600 hover:text-green-700"
-                >
-                  ×
-                </button>
+                                  <button
+                    onClick={() => {
+                      setUploadedFile(null)
+                      setFileContent('')
+                    }}
+                    className="text-gray-600 hover:text-gray-700"
+                  >
+                    ×
+                  </button>
               </div>
               
               <div className="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
@@ -150,40 +150,40 @@ const EndUserView = () => {
         </div>
 
         {/* Integration Instructions */}
-        <div className="card p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">How to Integrate</h3>
+        <div className="card p-6 space-y-4">
+          <h3 className="text-lg font-medium text-gray-900">How to Integrate</h3>
           <div className="space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-6 h-6 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm font-medium">
-                1
+                          <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-6 h-6 bg-gray-100 text-gray-900 rounded-full flex items-center justify-center text-sm font-medium">
+                  1
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Upload a .md file</p>
+                  <p className="text-sm text-gray-600">Drag and drop or click browse to upload your content</p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-gray-900">Upload a .md file</p>
-                <p className="text-sm text-gray-600">Drag and drop or click browse to upload your content</p>
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-6 h-6 bg-gray-100 text-gray-900 rounded-full flex items-center justify-center text-sm font-medium">
+                  2
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Trigger integration</p>
+                  <p className="text-sm text-gray-600">
+                    Either type "send this to Notion" or drag a Notion URL into the chat
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-6 h-6 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm font-medium">
-                2
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0 w-6 h-6 bg-gray-100 text-gray-900 rounded-full flex items-center justify-center text-sm font-medium">
+                  3
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Watch the magic happen</p>
+                  <p className="text-sm text-gray-600">
+                    OAuth popup → Content transfer → Policy enforcement
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-gray-900">Trigger integration</p>
-                <p className="text-sm text-gray-600">
-                  Either type "send this to Notion" or drag a Notion URL into the chat
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0 w-6 h-6 bg-primary-100 text-primary-600 rounded-full flex items-center justify-center text-sm font-medium">
-                3
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Watch the magic happen</p>
-                <p className="text-sm text-gray-600">
-                  OAuth popup → Content transfer → Policy enforcement
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -191,7 +191,7 @@ const EndUserView = () => {
       {/* Right Panel - Chat Interface */}
       <div className="card p-6">
         <div className="flex items-center space-x-2 mb-4">
-          <MessageCircle className="w-5 h-5 text-primary-600" />
+          <MessageCircle className="w-4 h-4 text-gray-600" />
           <h3 className="text-lg font-medium text-gray-900">Breeze AI Assistant</h3>
         </div>
         

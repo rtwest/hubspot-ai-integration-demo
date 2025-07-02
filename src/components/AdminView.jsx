@@ -72,17 +72,17 @@ const AdminView = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">IT Admin Dashboard</h1>
-          <p className="text-gray-600">Manage connection policies and monitor integrations</p>
+          <h1 className="text-2xl font-medium text-gray-900">Admin Dashboard</h1>
+          <p className="text-gray-600 mt-1">Manage connection policies and monitor integrations</p>
         </div>
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2">
-            <Activity className="w-5 h-5 text-green-500" />
-            <span className="text-sm text-gray-600">
+          <div className="flex items-center space-x-2 text-sm text-gray-600">
+            <Activity className="w-4 h-4" />
+            <span>
               {policies.activeConnections.length} active connections
             </span>
           </div>
@@ -91,39 +91,39 @@ const AdminView = () => {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-6">
           <button
             onClick={() => setActiveTab('policies')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === 'policies'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
             <Shield className="w-4 h-4 inline mr-2" />
-            Connection Policies
+            Policies
           </button>
           <button
             onClick={() => setActiveTab('apps')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === 'apps'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
             <Settings className="w-4 h-4 inline mr-2" />
-            Approved Apps
+            Apps
           </button>
           <button
             onClick={() => setActiveTab('connections')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === 'connections'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-black text-black'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
             }`}
           >
             <Activity className="w-4 h-4 inline mr-2" />
-            Active Connections
+            Connections
           </button>
         </nav>
       </div>
@@ -132,7 +132,7 @@ const AdminView = () => {
       {activeTab === 'policies' && (
         <div className="space-y-6">
           {/* Global Policy Toggle */}
-          <div className="card p-6">
+          <div className="card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-medium text-gray-900">Global Policy Override</h3>
@@ -149,10 +149,10 @@ const AdminView = () => {
               </label>
             </div>
             {policies.globalEphemeral && (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                 <div className="flex">
-                  <AlertTriangle className="w-5 h-5 text-yellow-400 mr-2" />
-                  <p className="text-sm text-yellow-800">
+                  <AlertTriangle className="w-4 h-4 text-gray-600 mr-2 mt-0.5" />
+                  <p className="text-sm text-gray-700">
                     <strong>Global Override Active:</strong> All connections will auto-disconnect after task completion, regardless of user group policies.
                   </p>
                 </div>
@@ -161,12 +161,12 @@ const AdminView = () => {
           </div>
 
           {/* User Group Policies */}
-          <div className="card p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">User Group Policies</h3>
+          <div className="card p-6 space-y-6">
+            <h3 className="text-lg font-medium text-gray-900">User Group Policies</h3>
             <div className="space-y-4">
               {Object.entries(policies.userGroups).map(([key, group]) => (
-                <div key={key} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div key={key} className="border border-gray-200 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
                     <h4 className="font-medium text-gray-900">{group.name}</h4>
                     <Users className="w-4 h-4 text-gray-400" />
                   </div>
