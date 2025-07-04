@@ -94,3 +94,8 @@ jspm_packages/
 
 # TernJS port file
 .tern-port 
+.vercel
+
+# Backup files with secrets
+.env.local.backup
+.env.local.bak

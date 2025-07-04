@@ -154,17 +154,17 @@ export const PolicyProvider = ({ children }) => {
           }
         ]
       },
-      'demo-user': {
-        id: 'demo-user',
-        name: 'Demo User',
-        email: 'demo@company.com',
-        userGroup: 'marketing',
+      'gabby': {
+        id: 'gabby',
+        name: 'Gabby',
+        email: 'gabby@company.com',
+        userGroup: 'sales',
         integrations: []
       }
     }
   })
 
-  const [currentUserGroup, setCurrentUserGroup] = useState('marketing')
+  const [currentUserGroup, setCurrentUserGroup] = useState('sales')
 
   // Update global ephemeral policy
   const updateGlobalEphemeral = (enabled) => {
@@ -267,7 +267,35 @@ export const PolicyProvider = ({ children }) => {
 
   // Get all users with their integration history
   const getAllUsersWithIntegrations = () => {
-    return Object.values(policies.users)
+    // Get Gabby's real integration history from demo pages
+    const demoPages = JSON.parse(localStorage.getItem('demo_notion_pages') || '[]')
+    const gabbyUser = policies.users.gabby
+    
+    // Create integration records from demo pages
+    const realIntegrations = demoPages.map((page, index) => ({
+      id: `gabby-notion-${page.id}`,
+      app: 'notion',
+      connectedAt: page.createdAt,
+      lastActivity: page.updatedAt || page.createdAt,
+      status: 'active',
+      expiresAt: 'persistent',
+      pageUrl: page.url,
+      pageTitle: page.title,
+      contentPreview: page.content.substring(0, 100) + (page.content.length > 100 ? '...' : ''),
+      authMethod: 'Personal API Key'
+    }))
+
+    // Combine real integrations with existing ones
+    const updatedGabby = {
+      ...gabbyUser,
+      integrations: [...gabbyUser.integrations, ...realIntegrations]
+    }
+
+    // Return all users, with updated Gabby
+    return Object.values({
+      ...policies.users,
+      gabby: updatedGabby
+    })
   }
 
   // Get current user's policy

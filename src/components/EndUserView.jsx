@@ -1,205 +1,153 @@
-import React, { useState, useRef } from 'react'
-import { usePolicy } from '../context/PolicyContext'
-import { 
-  Upload, 
-  FileText, 
-  MessageCircle, 
-  Send, 
-  Link,
-  CheckCircle,
-  AlertCircle,
-  Loader
-} from 'lucide-react'
-import ChatInterface from './ChatInterface'
+import React, { useState } from 'react';
+import { Plus, MessageSquare, FileText, Download, Share2 } from 'lucide-react';
+import ChatInterface from './ChatInterface.jsx';
+import DemoPageViewer from './DemoPageViewer.jsx';
 
 const EndUserView = () => {
-  const { currentUserGroup, setCurrentUserGroup, getCurrentUserPolicy } = usePolicy()
-  const [uploadedFile, setUploadedFile] = useState(null)
-  const [fileContent, setFileContent] = useState('')
-  const [isDragOver, setIsDragOver] = useState(false)
-  const fileInputRef = useRef(null)
+  const [showDemoViewer, setShowDemoViewer] = useState(false);
+  const [currentFile, setCurrentFile] = useState({
+    name: 'Campaign Report Q4 2024.txt',
+    content: `Q4 2024 Marketing Campaign Report
 
-  const userPolicy = getCurrentUserPolicy()
+Campaign Overview:
+- Campaign Name: Holiday Season Product Launch
+- Duration: October 1 - December 31, 2024
+- Budget: $150,000
+- Target Audience: Small business owners, 25-45 years old
 
-  const handleFileUpload = async (file) => {
-    if (file.type === 'text/markdown' || file.name.endsWith('.md')) {
-      const content = await file.text()
-      setUploadedFile(file)
-      setFileContent(content)
-    } else {
-      alert('Please upload a .md file')
-    }
-  }
+Performance Metrics:
+- Impressions: 2.5M
+- Clicks: 45,000
+- CTR: 1.8%
+- Conversions: 1,200
+- CPA: $125
+- ROAS: 3.2x
 
-  const handleDrop = (e) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    
-    const files = e.dataTransfer.files
-    if (files.length > 0) {
-      handleFileUpload(files[0])
-    }
-  }
+Top Performing Channels:
+1. Google Ads - 40% of conversions
+2. LinkedIn Ads - 35% of conversions  
+3. Facebook Ads - 25% of conversions
 
-  const handleDragOver = (e) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }
+Key Learnings:
+- Video content performed 2.5x better than static images
+- Mobile traffic converted 15% higher than desktop
+- Retargeting campaigns showed 3x better ROI
 
-  const handleDragLeave = (e) => {
-    e.preventDefault()
-    setIsDragOver(false)
-  }
+Next Steps:
+- Scale successful video ad formats
+- Increase mobile bid adjustments
+- Launch retargeting campaign for Q1 2025
 
-  const handleFileInputChange = (e) => {
-    const file = e.target.files[0]
-    if (file) {
-      handleFileUpload(file)
-    }
-  }
+Prepared by: Marketing Team
+Date: January 15, 2025`,
+    type: 'text/plain',
+    size: '2.3 KB'
+  });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-[calc(100vh-140px)]">
-      {/* Left Panel - File Upload & Display */}
-      <div className="space-y-6">
-        {/* User Group Selector */}
-        <div className="card p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-medium text-gray-900">Current User Group</h3>
-              <p className="text-sm text-gray-600">Policy: {userPolicy.connectionDuration}</p>
-            </div>
-            <select
-              value={currentUserGroup}
-              onChange={(e) => setCurrentUserGroup(e.target.value)}
-              className="input-field w-auto"
-            >
-              <option value="marketing">Marketing Team</option>
-              <option value="sales">Sales Team</option>
-              <option value="customerSuccess">Customer Success Team</option>
-            </select>
-          </div>
-        </div>
-
-        {/* File Upload Area */}
-        <div className="card p-6 space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">Upload Content to Share</h3>
-          
-                      {!uploadedFile ? (
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  isDragOver 
-                    ? 'border-black bg-gray-50' 
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-            >
-              <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">
-                Drag and drop a .md file here, or{' '}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-black hover:text-gray-700 font-medium"
-                >
-                  browse
-                </button>
-              </p>
-              <p className="text-sm text-gray-500">Supports .md files only</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".md"
-                onChange={handleFileInputChange}
-                className="hidden"
-              />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+    <div className="h-full flex flex-col bg-gray-50">
+      {/* Main Content Area */}
+      <div className="flex-1 flex">
+        {/* File Display Panel - Left Side */}
+        <div className="w-1/2 p-6">
+          <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            {/* File Header */}
+            <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-4 h-4 text-gray-600" />
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="text-blue-600" size={20} />
+                  </div>
                   <div>
-                    <p className="font-medium text-gray-900">{uploadedFile.name}</p>
-                    <p className="text-sm text-gray-600">Ready to share</p>
+                    <h2 className="text-lg font-semibold text-gray-900">{currentFile.name}</h2>
+                    <p className="text-sm text-gray-500">{currentFile.type} • {currentFile.size}</p>
                   </div>
                 </div>
-                                  <button
-                    onClick={() => {
-                      setUploadedFile(null)
-                      setFileContent('')
-                    }}
-                    className="text-gray-600 hover:text-gray-700"
-                  >
-                    ×
+                <div className="flex items-center space-x-2">
+                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    <Download size={16} />
                   </button>
-              </div>
-              
-              <div className="border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
-                <div className="flex items-center space-x-2 mb-2">
-                  <FileText className="w-4 h-4 text-gray-500" />
-                  <span className="text-sm font-medium text-gray-700">File Content</span>
+                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    <Share2 size={16} />
+                  </button>
                 </div>
-                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">
-                  {fileContent}
-                </pre>
               </div>
             </div>
-          )}
+
+            {/* File Content */}
+            <div className="flex-1 p-6 overflow-y-auto">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
+                  {currentFile.content}
+                </pre>
+              </div>
+              
+              {/* Integration Instructions */}
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <h3 className="text-sm font-medium text-blue-900 mb-2">💡 Sales Team Integrations Available:</h3>
+                <div className="space-y-2 text-sm text-blue-800">
+                  <p>• Type <span className="font-mono bg-blue-100 px-2 py-1 rounded">"send this to Notion"</span> in the chat</p>
+                  <p>• Type <span className="font-mono bg-blue-100 px-2 py-1 rounded">"save this to Google Drive"</span> in the chat</p>
+                  <p>• Drag a Notion or Google Drive URL into the chat</p>
+                  <p className="text-xs text-blue-700 mt-3">🔗 Connections stay active for 24 hours per Sales team policy</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Integration Instructions */}
-        <div className="card p-6 space-y-4">
-          <h3 className="text-lg font-medium text-gray-900">How to Integrate</h3>
-          <div className="space-y-4">
-                          <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-gray-100 text-gray-900 rounded-full flex items-center justify-center text-sm font-medium">
-                  1
+        {/* Chat Panel - Right Side */}
+        <div className="w-1/2 p-6">
+          <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            {/* Chat Panel Header */}
+            <div className="bg-white border-b border-gray-200 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <MessageSquare className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-semibold text-gray-900">AI Assistant</h1>
+                    <p className="text-sm text-gray-500">Ready to help with integrations</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">Upload a .md file</p>
-                  <p className="text-sm text-gray-600">Drag and drop or click browse to upload your content</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-gray-100 text-gray-900 rounded-full flex items-center justify-center text-sm font-medium">
-                  2
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Trigger integration</p>
-                  <p className="text-sm text-gray-600">
-                    Either type "send this to Notion" or drag a Notion URL into the chat
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-6 h-6 bg-gray-100 text-gray-900 rounded-full flex items-center justify-center text-sm font-medium">
-                  3
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Watch the magic happen</p>
-                  <p className="text-sm text-gray-600">
-                    OAuth popup → Content transfer → Policy enforcement
-                  </p>
+                
+                <div className="flex items-center space-x-3">
+                  <div className="text-sm text-gray-600">
+                    <span className="font-medium">Gabby</span> • <span className="text-blue-600">Sales Team</span>
+                  </div>
+                  <button className="text-sm text-gray-600 hover:text-gray-900">
+                    All Chats
+                  </button>
+                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                    <Plus size={20} />
+                  </button>
                 </div>
               </div>
+            </div>
+
+            {/* Chat Interface */}
+            <div className="flex-1">
+              <ChatInterface uploadedFile={currentFile} fileContent={currentFile.content} />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Right Panel - Chat Interface */}
-      <div className="card p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <MessageCircle className="w-4 h-4 text-gray-600" />
-          <h3 className="text-lg font-medium text-gray-900">Breeze AI Assistant</h3>
-        </div>
-        
-        <ChatInterface 
-          uploadedFile={uploadedFile}
-          fileContent={fileContent}
-        />
+      {/* Demo Page Viewer Button */}
+      <div className="p-6 pt-0">
+        <button
+          onClick={() => setShowDemoViewer(true)}
+          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+        >
+          View Demo Notion Pages
+        </button>
       </div>
+
+      {/* Demo Page Viewer Modal */}
+      {showDemoViewer && (
+        <DemoPageViewer isOpen={showDemoViewer} onClose={() => setShowDemoViewer(false)} />
+      )}
     </div>
   )
 }

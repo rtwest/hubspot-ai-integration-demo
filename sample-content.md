@@ -10,31 +10,31 @@
 - **Impressions**: 2.5M
 - **Clicks**: 125K
 - **CTR**: 5.0%
-- **Conversions**: 12.5K
-- **CPA**: $4.00
+- **Conversions**: 2,500
+- **CAC**: $20
 
-## Channel Performance
+## Performance by Channel
 
 ### Social Media
-- **Facebook**: 40% of budget, 2.1x ROAS
-- **LinkedIn**: 35% of budget, 1.8x ROAS
-- **Twitter**: 25% of budget, 1.5x ROAS
+- Facebook: 40% of impressions
+- LinkedIn: 35% of impressions
+- Twitter: 25% of impressions
 
-### Content Marketing
-- **Blog Posts**: 15 articles published
-- **Email Campaigns**: 8 nurture sequences
-- **Webinars**: 3 events with 500+ attendees
+### Email Marketing
+- Open Rate: 28%
+- Click Rate: 4.2%
+- Conversion Rate: 2.1%
 
-## Top Performing Assets
-1. Product Demo Video (2.3x engagement)
-2. Customer Success Stories (1.9x conversion)
-3. Interactive Product Tour (1.7x engagement)
+## Top Performing Content
+1. Product Demo Video (15% conversion rate)
+2. Customer Testimonial (12% conversion rate)
+3. Feature Comparison (8% conversion rate)
 
 ## Next Steps
-- Scale top-performing channels
-- A/B test new creative assets
-- Implement retargeting campaigns
-- Launch influencer partnerships
+- Scale successful ad sets
+- A/B test new creative
+- Optimize landing pages
+- Launch retargeting campaign
 
 ## Notes
-This campaign demonstrates strong performance across all channels with room for optimization in Q1 2025. 
+This campaign has exceeded our initial KPIs by 25%. The product demo video is our highest converting asset and should be featured more prominently in future campaigns. 

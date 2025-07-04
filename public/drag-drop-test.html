@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drag & Drop Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .url-list {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .url-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: grab;
+            user-select: none;
+        }
+        .url-item:hover {
+            background: #e9ecef;
+        }
+        .url-item:active {
+            cursor: grabbing;
+        }
+        .drop-zone {
+            min-height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.drag-over {
+            border-color: #007bff;
+            background-color: #e3f2fd;
+        }
+        .drop-zone.drag-over::after {
+            content: "Drop here!";
+            font-size: 18px;
+            color: #007bff;
+            font-weight: bold;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            padding: 2px 0;
+        }
+        .log-entry.info { color: #0066cc; }
+        .log-entry.success { color: #28a745; }
+        .log-entry.error { color: #dc3545; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Drag & Drop Test</h1>
+        <p>This page helps test the drag and drop functionality for the HubSpot AI Integration Demo.</p>
+        
+        <div class="url-list">
+            <h3>Test URLs (drag these to the drop zone below):</h3>
+            <div class="url-item" draggable="true" data-url="https://www.notion.so/myworkspace/a8aec43384f447ed84390e8e42c2e089">
+                📄 Notion Page URL
+            </div>
+            <div class="url-item" draggable="true" data-url="https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view">
+                📁 Google Drive File URL
+            </div>
+            <div class="url-item" draggable="true" data-url="https://notion.so/workspace/page">
+                📝 Another Notion URL
+            </div>
+            <div class="url-item" draggable="true" data-url="https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit">
+                📋 Google Docs URL
+            </div>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+            <span>Drop URLs here to test</span>
+        </div>
+
+        <div class="log" id="log">
+            <div class="log-entry info">Ready to test drag and drop...</div>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button onclick="clearLog()">Clear Log</button>
+            <button onclick="testUrlDetection()">Test URL Detection</button>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const log = document.getElementById('log');
+
+        function addLog(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            log.innerHTML = '<div class="log-entry info">Log cleared...</div>';
+        }
+
+        // Drag and drop event handlers
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+            addLog('Drag over detected', 'info');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            addLog('Drag leave detected', 'info');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            
+            const url = e.dataTransfer.getData('text/plain');
+            addLog(`Drop detected! URL: ${url}`, 'success');
+            
+            // Test URL detection
+            testUrl(url);
+        });
+
+        // Make URL items draggable
+        document.querySelectorAll('.url-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                const url = item.getAttribute('data-url');
+                e.dataTransfer.setData('text/plain', url);
+                e.dataTransfer.effectAllowed = 'copy';
+                addLog(`Started dragging: ${url}`, 'info');
+            });
+        });
+
+        function testUrl(url) {
+            addLog(`Testing URL: ${url}`, 'info');
+            
+            // Test Notion URL detection
+            const isNotion = url.includes('notion.so') || url.includes('notion.com');
+            addLog(`Is Notion URL: ${isNotion}`, isNotion ? 'success' : 'error');
+            
+            // Test Google Drive URL detection
+            const isGoogleDrive = url.includes('drive.google.com') && extractGoogleDriveFileId(url) !== null;
+            addLog(`Is Google Drive URL: ${isGoogleDrive}`, isGoogleDrive ? 'success' : 'error');
+            
+            if (isGoogleDrive) {
+                const fileId = extractGoogleDriveFileId(url);
+                addLog(`Google Drive File ID: ${fileId}`, 'success');
+            }
+        }
+
+        function extractGoogleDriveFileId(url) {
+            const patterns = [
+                /\/file\/d\/([a-zA-Z0-9-_]+)/,
+                /id=([a-zA-Z0-9-_]+)/,
+                /\/d\/([a-zA-Z0-9-_]+)/
+            ];
+            
+            for (const pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) {
+                    return match[1];
+                }
+            }
+            
+            return null;
+        }
+
+        function testUrlDetection() {
+            addLog('Testing URL detection functions...', 'info');
+            
+            const testUrls = [
+                'https://www.notion.so/myworkspace/a8aec43384f447ed84390e8e42c2e089',
+                'https://drive.google.com/file/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/view',
+                'https://notion.so/workspace/page',
+                'https://docs.google.com/document/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit',
+                'https://example.com/not-a-valid-url'
+            ];
+            
+            testUrls.forEach(url => {
+                testUrl(url);
+            });
+        }
+    </script>
+</body>
+</html> 
