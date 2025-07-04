@@ -289,7 +289,8 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       if (service === 'notion') {
         addMessage(`✅ Content successfully sent to Notion!${authMethod}\n\n📄 New page created under your demo page: ${transferResult.pageUrl}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
       } else if (service === 'google-drive') {
-        addMessage(`✅ Content successfully saved to Google Drive!${authMethod}\n\n📄 New file created: ${transferResult.webViewLink}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
+        const folderInfo = targetUrl ? '' : '\n📁 Saved to default HubSpot AI Integration folder'
+        addMessage(`✅ Content successfully saved to Google Drive!${authMethod}${folderInfo}\n\n📄 New file created: ${transferResult.webViewLink}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
       }
     }
 

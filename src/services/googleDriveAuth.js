@@ -93,24 +93,51 @@ const performGoogleOAuth = () => {
     // The message listener will handle OAuth completion
 
     // Listen for OAuth completion message
-    window.addEventListener('message', (event) => {
+    const messageHandler = (event) => {
       if (event.origin !== window.location.origin) return
       if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
-        try {
-          popup.close()
-        } catch (error) {
-          console.log('Could not close popup - continuing...')
+        // Remove the event listener first
+        window.removeEventListener('message', messageHandler)
+        
+        // Try to close popup, but don't let errors stop the flow
+        if (popup && !popup.closed) {
+          try {
+            popup.close()
+          } catch (error) {
+            console.log('Could not close popup - continuing...')
+          }
         }
         resolve(event.data.tokens)
       } else if (event.data.type === 'GOOGLE_OAUTH_CANCELLED') {
+        // Remove the event listener first
+        window.removeEventListener('message', messageHandler)
+        
+        // Try to close popup, but don't let errors stop the flow
+        if (popup && !popup.closed) {
+          try {
+            popup.close()
+          } catch (error) {
+            console.log('Could not close popup - continuing...')
+          }
+        }
+        resolve(null)
+      }
+    }
+    
+    window.addEventListener('message', messageHandler)
+    
+    // Add a timeout to prevent hanging
+    setTimeout(() => {
+      window.removeEventListener('message', messageHandler)
+      if (popup && !popup.closed) {
         try {
           popup.close()
         } catch (error) {
           console.log('Could not close popup - continuing...')
         }
-        resolve(null)
       }
-    })
+      resolve(null)
+    }, 300000) // 5 minute timeout
   })
 }
 
@@ -133,17 +160,20 @@ export const authenticateWithGoogle = async () => {
   }
 }
 
+// Default Google Drive folder ID for when no specific parent is provided
+const DEFAULT_GOOGLE_DRIVE_FOLDER_ID = '1d3Pgsywd7t3s3IHbxfmWY3GdZzsTrKFs'
+
 // Create a new file in Google Drive
 export const createGoogleDriveFile = async (content, fileName, accessToken, parentFolderId = null) => {
-  console.log('Creating Google Drive file:', { fileName, parentFolderId, isReal: isRealGoogleConfigured() })
+  // Use default folder if no parent folder is specified
+  const targetFolderId = parentFolderId || DEFAULT_GOOGLE_DRIVE_FOLDER_ID
+  console.log('Creating Google Drive file:', { fileName, parentFolderId, targetFolderId, isReal: isRealGoogleConfigured() })
   
   if (!isRealGoogleConfigured()) {
     return new Promise((resolve) => {
       setTimeout(() => {
         const fileId = 'demo-file-' + Math.random().toString(36).substr(2, 9)
-        const fileUrl = parentFolderId 
-          ? `https://drive.google.com/file/d/${fileId}/view?usp=sharing&resourcekey=0-${parentFolderId}`
-          : `https://drive.google.com/file/d/${fileId}/view`
+        const fileUrl = `https://drive.google.com/file/d/${fileId}/view?usp=sharing&resourcekey=0-${targetFolderId}`
         
         // Store the simulated file for later reference
         const demoFiles = JSON.parse(localStorage.getItem('demo_google_files') || '[]')
@@ -152,7 +182,7 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
           name: fileName,
           url: fileUrl,
           content: content,
-          parentFolderId: parentFolderId,
+          parentFolderId: targetFolderId,
           createdAt: new Date().toISOString(),
           type: 'text/plain'
         })
@@ -164,7 +194,7 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
           name: fileName,
           webViewLink: fileUrl,
           mimeType: 'text/plain',
-          parentFolderId: parentFolderId
+          parentFolderId: targetFolderId
         })
       }, 1500)
     })
@@ -180,7 +210,7 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
         accessToken,
         fileName,
         content,
-        parentFolderId
+        parentFolderId: targetFolderId
       })
     })
 
