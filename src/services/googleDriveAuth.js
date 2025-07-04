@@ -1,4 +1,5 @@
 // Google Drive OAuth and API service
+import { supabase } from '../lib/supabase.js'
 
 // Google OAuth Configuration
 const GOOGLE_CONFIG = {
@@ -171,10 +172,15 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
   }
 
   try {
+    // Get the Supabase JWT
+    const { data: { session } } = await supabase.auth.getSession()
+    const jwt = session?.access_token
+
     const response = await fetch(getGoogleApiUrl(''), {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
       },
       body: JSON.stringify({
         accessToken,
@@ -222,10 +228,15 @@ export const updateGoogleDriveFile = async (fileId, content, accessToken) => {
   }
 
   try {
+    // Get the Supabase JWT
+    const { data: { session } } = await supabase.auth.getSession()
+    const jwt = session?.access_token
+
     const response = await fetch(getGoogleApiUrl(`/${fileId}`), {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
       },
       body: JSON.stringify({
         accessToken,
