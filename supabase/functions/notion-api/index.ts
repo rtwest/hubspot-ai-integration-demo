@@ -6,11 +6,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Simulate fetching the latest user policy (replace with real DB/API call in production)
+async function fetchLatestUserPolicy(supabaseClient, userId, provider) {
+  // 1. Get the user's role
+  const { data: user, error: userError } = await supabaseClient
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .single();
+  if (userError || !user) throw new Error('User not found');
+
+  // 2. Get the policy for this role and provider
+  const { data: policy, error: policyError } = await supabaseClient
+    .from('connection_policies')
+    .select('connection_duration_hours, auto_disconnect, allowed')
+    .eq('role', user.role)
+    .eq('provider', provider)
+    .single();
+  if (policyError || !policy) throw new Error('Policy not found');
+
+  return {
+    autoDisconnect: policy.auto_disconnect,
+    connectionDurationHours: policy.connection_duration_hours,
+    allowed: policy.allowed
+  };
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
+
+  // Always initialize supabaseClient at the top
+  const supabaseClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    {
+      global: {
+        headers: { Authorization: req.headers.get('Authorization')! },
+      },
+    }
+  );
 
   try {
     // Always parse the body first
@@ -38,6 +75,24 @@ serve(async (req) => {
     
     if (!notionApiKey) {
       throw new Error('Notion API key not provided')
+    }
+
+    // Get current user (simulate, since Notion API key flow may not have user auth)
+    // If you have user auth, fetch userId from JWT or session
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'User not authenticated' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+    // ENFORCE POLICY: Fetch latest policy and reject if autoDisconnect is true
+    const userPolicy = await fetchLatestUserPolicy(supabaseClient, user.id, 'notion');
+    if (userPolicy.autoDisconnect) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Auto-disconnect policy enforced: must re-authenticate.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
     }
 
     let notionResponse

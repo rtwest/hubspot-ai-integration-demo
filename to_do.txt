@@ -1,0 +1,2 @@
+- add activity connection logging to admin view
+- really allow or disallow connection to Notion 

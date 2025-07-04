@@ -6,6 +6,32 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Simulate fetching the latest user policy (replace with real DB/API call in production)
+async function fetchLatestUserPolicy(supabaseClient, userId, provider) {
+  // 1. Get the user's role
+  const { data: user, error: userError } = await supabaseClient
+    .from('users')
+    .select('role')
+    .eq('id', userId)
+    .single();
+  if (userError || !user) throw new Error('User not found');
+
+  // 2. Get the policy for this role and provider
+  const { data: policy, error: policyError } = await supabaseClient
+    .from('connection_policies')
+    .select('connection_duration_hours, auto_disconnect, allowed')
+    .eq('role', user.role)
+    .eq('provider', provider)
+    .single();
+  if (policyError || !policy) throw new Error('Policy not found');
+
+  return {
+    autoDisconnect: policy.auto_disconnect,
+    connectionDurationHours: policy.connection_duration_hours,
+    allowed: policy.allowed
+  };
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -39,6 +65,15 @@ serve(async (req) => {
 
     if (connectionError || !connection) {
       throw new Error('Google OAuth connection not found')
+    }
+
+    // ENFORCE POLICY: Fetch latest policy and reject if autoDisconnect is true
+    const userPolicy = await fetchLatestUserPolicy(supabaseClient, user.id, 'google');
+    if (userPolicy.autoDisconnect) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Auto-disconnect policy enforced: must re-authenticate.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
     }
 
     // Check if token is expired and refresh if needed

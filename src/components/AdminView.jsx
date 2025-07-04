@@ -19,6 +19,7 @@ import {
   User,
   Globe
 } from 'lucide-react'
+import { supabase } from '../lib/supabase.js'
 
 const AdminView = () => {
   const {
@@ -33,6 +34,9 @@ const AdminView = () => {
   const [activeTab, setActiveTab] = useState('activity')
   const [openDropdowns, setOpenDropdowns] = useState({})
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [saveStatus, setSaveStatus] = useState('')
+  const [userRole, setUserRole] = useState(null)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   const toggleDropdown = (key) => {
     setOpenDropdowns(prev => ({
@@ -55,6 +59,37 @@ const AdminView = () => {
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Check user role and admin status
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        // Get current user's role
+        const { data: roleData, error: roleError } = await supabase.rpc('get_current_user_role')
+        if (roleError) {
+          console.error('Error getting user role:', roleError)
+          setUserRole('unknown')
+        } else {
+          setUserRole(roleData)
+        }
+
+        // Check if user is admin
+        const { data: adminData, error: adminError } = await supabase.rpc('is_admin')
+        if (adminError) {
+          console.error('Error checking admin status:', adminError)
+          setIsAdmin(false)
+        } else {
+          setIsAdmin(adminData)
+        }
+      } catch (error) {
+        console.error('Error checking user permissions:', error)
+        setUserRole('error')
+        setIsAdmin(false)
+      }
+    }
+
+    checkUserRole()
   }, [])
 
   // Listen for real-time updates to Gabby's integration history
@@ -213,6 +248,58 @@ const AdminView = () => {
     
     // Sort by timestamp (newest first)
     return activityLog.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+  }
+
+  // Helper to update policy in Supabase
+  async function updateSupabasePolicy(role, provider, updates) {
+    const { error } = await supabase
+      .from('connection_policies')
+      .update(updates)
+      .eq('role', role)
+      .eq('provider', provider);
+    return error;
+  }
+
+  // Helper to update policy in Supabase and show status
+  async function autoSavePolicy(role, group) {
+    // Check if user is admin before attempting to save
+    if (!isAdmin) {
+      setSaveStatus('Error: Admin privileges required to save policies. Current role: ' + userRole);
+      setTimeout(() => setSaveStatus(''), 4000);
+      return;
+    }
+
+    // Map connectionDuration to hours and auto_disconnect
+    let connection_duration_hours = 24;
+    let auto_disconnect = false;
+    if (group.connectionDuration === 'auto-disconnect') {
+      connection_duration_hours = 0;
+      auto_disconnect = true;
+    } else if (group.connectionDuration === 'persistent') {
+      connection_duration_hours = 8760;
+      auto_disconnect = false;
+    } else if (group.connectionDuration === '24h') {
+      connection_duration_hours = 24;
+      auto_disconnect = false;
+    }
+    // Update all providers for this group
+    const providers = ['notion', 'google', 'slack'];
+    let error = null;
+    for (const provider of providers) {
+      error = await updateSupabasePolicy(role, provider, {
+        connection_duration_hours,
+        auto_disconnect,
+        allowed: group.allowedApps.includes(provider)
+      });
+      if (error) break;
+    }
+    if (!error) {
+      setSaveStatus('Policy auto-saved to Supabase!');
+      setTimeout(() => setSaveStatus(''), 2000);
+    } else {
+      setSaveStatus('Error saving policy: ' + error.message);
+      setTimeout(() => setSaveStatus(''), 4000);
+    }
   }
 
   return (
@@ -442,6 +529,32 @@ const AdminView = () => {
           {/* User Group Policies */}
           <div className="card p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-6">User Group Policies</h3>
+            
+            {/* User Role Debug Info */}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="text-sm text-blue-800">
+                <strong>Debug Info:</strong> Current User Role: <span className="font-mono">{userRole || 'loading...'}</span> | 
+                Admin Status: <span className="font-mono">{isAdmin ? 'Yes' : 'No'}</span>
+              </div>
+              {!isAdmin && (
+                <div className="mt-2 text-xs text-blue-600">
+                  To enable policy editing, promote your user to admin role using: 
+                  <code className="ml-1 bg-blue-100 px-1 rounded">SELECT promote_to_admin('your-email@example.com');</code>
+                </div>
+              )}
+            </div>
+            
+            {/* Status message */}
+            {saveStatus && (
+              <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${
+                saveStatus.includes('Error') 
+                  ? 'bg-red-100 text-red-700 border border-red-200' 
+                  : 'bg-green-100 text-green-700 border border-green-200'
+              }`}>
+                {saveStatus}
+              </div>
+            )}
+            
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -449,6 +562,7 @@ const AdminView = () => {
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Role</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Connection Duration</th>
                     <th className="text-left py-3 px-4 font-medium text-gray-900">Allowed Apps</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-900">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -466,7 +580,10 @@ const AdminView = () => {
                       <td className="py-4 px-4">
                         <select
                           value={group.connectionDuration}
-                          onChange={(e) => updateUserGroupPolicy(key, { connectionDuration: e.target.value })}
+                          onChange={async (e) => {
+                            updateUserGroupPolicy(key, { connectionDuration: e.target.value })
+                            await autoSavePolicy(key, { ...group, connectionDuration: e.target.value })
+                          }}
                           className="text-sm border border-gray-200 rounded px-2 py-1 bg-white"
                         >
                           <option value="auto-disconnect">Auto-disconnect</option>
@@ -500,11 +617,12 @@ const AdminView = () => {
                                   <input
                                     type="checkbox"
                                     checked={group.allowedApps.includes(appKey)}
-                                    onChange={(e) => {
+                                    onChange={async (e) => {
                                       const newAllowedApps = e.target.checked
                                         ? [...group.allowedApps, appKey]
                                         : group.allowedApps.filter(a => a !== appKey)
                                       updateUserGroupPolicy(key, { allowedApps: newAllowedApps })
+                                      await autoSavePolicy(key, { ...group, allowedApps: newAllowedApps })
                                     }}
                                     className="rounded border-gray-300 mr-2"
                                   />
@@ -517,6 +635,9 @@ const AdminView = () => {
                             </div>
                           )}
                         </div>
+                      </td>
+                      <td className="py-4 px-4">
+                        <span className="text-xs text-gray-500">Auto-save enabled</span>
                       </td>
                     </tr>
                   ))}
@@ -597,7 +718,6 @@ const AdminView = () => {
           </div>
         </div>
       )}
-
 
         </div>
       </div>

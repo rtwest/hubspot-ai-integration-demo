@@ -346,4 +346,28 @@ export const PolicyProvider = ({ children }) => {
       {children}
     </PolicyContext.Provider>
   )
-} 
+}
+
+// Add this function to fetch the latest policy for the current user group
+export const fetchLatestUserPolicy = async (currentUserGroup) => {
+  // Simulate a backend fetch for now (replace with real API call if available)
+  // In a real app, fetch from your backend or Supabase
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // For now, just return the current policy from state
+      // Replace this with a real fetch if you have a backend endpoint
+      const policies = JSON.parse(localStorage.getItem('policies')) || null;
+      if (policies && policies.userGroups && policies.userGroups[currentUserGroup]) {
+        const userGroup = policies.userGroups[currentUserGroup];
+        resolve({
+          ...userGroup,
+          autoDisconnect: policies.globalEphemeral || userGroup.autoDisconnect,
+          connectionDuration: policies.globalEphemeral ? 'auto-disconnect' : userGroup.connectionDuration
+        });
+      } else {
+        // fallback to default
+        resolve({ autoDisconnect: false, connectionDuration: '24h' });
+      }
+    }, 200);
+  });
+}; 

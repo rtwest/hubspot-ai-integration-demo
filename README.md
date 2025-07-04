@@ -111,6 +111,36 @@ A functional demo showcasing HubSpot's revolutionary AI-powered integration syst
 - Real integration history with actual URLs
 - Functional OAuth tokens that work with APIs
 
+## 🔐 Admin Setup
+
+### **Setting Up Admin Users**
+To use the Admin Dashboard and manage policies, you need to promote a user to admin role:
+
+1. **First, sign up and log in** to your app with the user you want to make admin
+2. **Run the admin setup script:**
+   ```bash
+   # Set your Supabase credentials
+   export SUPABASE_URL="your-supabase-url"
+   export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+   
+   # Run the setup script
+   node setup-admin.js
+   ```
+3. **Enter the email address** of the user you want to promote
+4. **Log in again** with the admin user and access the Admin Dashboard
+
+### **Manual Database Setup**
+Alternatively, you can manually update the user role in your Supabase database:
+```sql
+UPDATE users SET role = 'admin' WHERE email = 'your-email@example.com';
+```
+
+### **Troubleshooting Admin Access**
+If you see "Admin privileges required" errors in the Admin Dashboard:
+1. Check that your user has the `admin` role in the database
+2. Verify you're logged in with the correct account
+3. Try logging out and back in to refresh your session
+
 ## 🎯 Demo Scenarios
 
 ### **Scenario 1: Natural Language Integration**

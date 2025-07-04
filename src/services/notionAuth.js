@@ -1,3 +1,5 @@
+import { supabase } from '../lib/supabase.js'
+
 // Notion API Configuration
 const NOTION_CONFIG = {
   apiKey: import.meta.env.VITE_NOTION_API_KEY,
@@ -60,68 +62,16 @@ export const authenticateNotion = () => {
 }
 
 // Notion API Functions
-export const createNotionPage = async (content, parentPageId = null) => {
-  // If real Notion integration is not configured, simulate page creation
-  if (!isRealNotionConfigured()) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const pageId = 'demo-page-' + Math.random().toString(36).substr(2, 9)
-        const pageUrl = `https://notion.so/${pageId}`
-        
-        // Store the simulated page for later reference
-        const demoPages = JSON.parse(localStorage.getItem('demo_notion_pages') || '[]')
-        demoPages.push({
-          id: pageId,
-          url: pageUrl,
-          title: 'Content from HubSpot AI Integration',
-          content: content,
-          parentPageId: parentPageId,
-          createdAt: new Date().toISOString()
-        })
-        localStorage.setItem('demo_notion_pages', JSON.stringify(demoPages))
-        
-        resolve({
-          success: true,
-          pageUrl: pageUrl,
-          pageId: pageId
-        })
-      }, 1500)
-    })
-  }
-  
-  try {
-    const response = await fetch('http://127.0.0.1:54321/functions/v1/notion-api', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        action: 'create_page',
-        content: content,
-        parent_page_id: parentPageId,
-        api_key: import.meta.env.VITE_NOTION_API_KEY
-      })
-    })
-    
-    if (!response.ok) {
-      const errorData = await response.text()
-      console.error('Notion create page error:', errorData)
-      throw new Error('Failed to create Notion page')
-    }
-    
-    const data = await response.json()
-    return {
-      success: true,
-      pageUrl: data.data?.url || data.url,
-      pageId: data.data?.id || data.id
-    }
-  } catch (error) {
-    console.error('Create page error:', error)
-    return {
-      success: false,
-      error: error.message
-    }
-  }
+export async function createNotionPage(content, parentPageId) {
+  return await callNotionApiWithPolicy('create_page', { content, parent_page_id: parentPageId });
+}
+
+export async function updateNotionPage(pageId, content) {
+  return await callNotionApiWithPolicy('update_page', { target_url: pageId, content });
+}
+
+export async function appendToNotionPage(pageId, content) {
+  return await callNotionApiWithPolicy('append_page', { target_url: pageId, content });
 }
 
 // Utility to convert Notion page ID to UUID format
@@ -142,147 +92,6 @@ function isValidNotionId(id) {
   return /^[0-9a-fA-F]{32}$/.test(id.replace(/-/g, ''));
 }
 
-export const updateNotionPage = async (pageUrl, content) => {
-  // If real Notion integration is not configured, simulate page update with realistic details
-  if (!isRealNotionConfigured()) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Extract page ID from URL and update the stored page
-        const pageId = pageUrl.split('/').pop().split('?')[0]
-        const demoPages = JSON.parse(localStorage.getItem('demo_notion_pages') || '[]')
-        const pageIndex = demoPages.findIndex(page => page.id === pageId)
-        
-        if (pageIndex !== -1) {
-          demoPages[pageIndex].content += '\n\n' + content
-          demoPages[pageIndex].updatedAt = new Date().toISOString()
-          localStorage.setItem('demo_notion_pages', JSON.stringify(demoPages))
-        }
-        
-        resolve({
-          success: true,
-          pageUrl: pageUrl,
-          pageId: pageId
-        })
-      }, 1500)
-    })
-  }
-  
-  try {
-    // Extract page ID from URL
-    const pageId = pageUrl.split('/').pop().split('?')[0]
-    
-    if (!isValidNotionId(pageId)) {
-      throw new Error('Invalid Notion page ID')
-    }
-    
-    const formattedPageId = toNotionUUID(pageId)
-    
-    const response = await fetch('http://127.0.0.1:54321/functions/v1/notion-api', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        action: 'update_page',
-        content: content,
-        target_url: pageUrl,
-        api_key: import.meta.env.VITE_NOTION_API_KEY
-      })
-    })
-    
-    if (!response.ok) {
-      const errorData = await response.text()
-      console.error('Notion update page error:', errorData)
-      throw new Error('Failed to update Notion page')
-    }
-    
-    const data = await response.json()
-    return {
-      success: true,
-      pageUrl: data.url,
-      pageId: data.id
-    }
-  } catch (error) {
-    console.error('Update page error:', error)
-    return {
-      success: false,
-      error: error.message
-    }
-  }
-}
-
-// Utility to extract Notion page ID from any valid Notion URL
-export function extractNotionPageId(url) {
-  // Match 32 hex chars, with or without dashes
-  const match = url.match(/([a-f0-9]{32})|([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
-  if (!match) return null;
-  // Remove dashes if present
-  return match[0].replace(/-/g, '');
-}
-
-export async function appendToNotionPage(pageUrl, content) {
-  const pageId = extractNotionPageId(pageUrl);
-  console.log('Extracted Notion page ID:', pageId);
-  if (!pageId) throw new Error('Invalid Notion page ID');
-  
-  // If real Notion integration is not configured, simulate appending content
-  if (!isRealNotionConfigured()) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Extract page ID from URL and update the stored page
-        const demoPages = JSON.parse(localStorage.getItem('demo_notion_pages') || '[]')
-        const pageIndex = demoPages.findIndex(page => page.id === pageId)
-        
-        if (pageIndex !== -1) {
-          demoPages[pageIndex].content += '\n\n' + content
-          demoPages[pageIndex].updatedAt = new Date().toISOString()
-          localStorage.setItem('demo_notion_pages', JSON.stringify(demoPages))
-        }
-        
-        resolve({
-          success: true,
-          pageUrl: pageUrl,
-          pageId: pageId
-        })
-      }, 1500)
-    })
-  }
-  
-  try {
-    const response = await fetch('http://127.0.0.1:54321/functions/v1/notion-api', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        action: 'update_page',
-        content: content,
-        target_url: pageUrl,
-        api_key: import.meta.env.VITE_NOTION_API_KEY
-      })
-    })
-    
-    if (!response.ok) {
-      const errorData = await response.text()
-      console.error('Notion append to page error:', errorData)
-      throw new Error('Failed to append to Notion page')
-    }
-    
-    const data = await response.json()
-    return {
-      success: true,
-      pageUrl: data.data?.url || pageUrl,
-      pageId: data.data?.id || pageId
-    }
-  } catch (error) {
-    console.error('Append to page error:', error)
-    return {
-      success: false,
-      error: error.message
-    }
-  }
-}
-
 // Token management functions (simplified for API key approach)
 export const storeNotionToken = (userId, token) => {
   localStorage.setItem(`notion_token_${userId}`, token)
@@ -299,4 +108,41 @@ export const removeNotionToken = (userId) => {
 export const isTokenValid = async () => {
   // For API key approach, we assume the key is always valid
   return true
+}
+
+// Helper to get current user ID
+async function getCurrentUserId() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id;
+}
+
+const NOTION_API_URL = import.meta.env.PROD
+  ? 'https://gvqsvvfvcurzgfwbjutq.functions.supabase.co/notion-api'
+  : '/api/notion';
+
+// Example for a Notion API call (repeat for all Notion API fetches):
+export async function callNotionApiWithPolicy(action, body) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const jwt = session?.access_token;
+  const response = await fetch(NOTION_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
+    },
+    body: JSON.stringify({ ...body, action })
+  });
+  if (response.status === 403) {
+    throw new Error('Re-authentication required by admin policy. Please reconnect to Notion.');
+  }
+  return response.json();
+}
+
+// Utility to extract Notion page ID from any valid Notion URL
+export function extractNotionPageId(url) {
+  // Match 32 hex chars, with or without dashes
+  const match = url.match(/([a-f0-9]{32})|([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+  if (!match) return null;
+  // Remove dashes if present
+  return match[0].replace(/-/g, '');
 } 

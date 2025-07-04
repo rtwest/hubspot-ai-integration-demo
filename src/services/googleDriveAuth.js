@@ -127,17 +127,22 @@ const DEFAULT_GOOGLE_DRIVE_FOLDER_ID = '1d3Pgsywd7t3s3IHbxfmWY3GdZzsTrKFs'
 const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || ''
 
 function getGoogleApiUrl(path) {
-  // In dev, you may want to proxy to /api/google/drive/files, but in prod use the full URL
-  if (SUPABASE_FUNCTIONS_URL) {
-    return `${SUPABASE_FUNCTIONS_URL}/google-api${path}`
+  if (import.meta.env.PROD) {
+    return `https://gvqsvvfvcurzgfwbjutq.functions.supabase.co/google-api${path}`;
   }
-  return `/api/google/drive/files${path}`
+  return `/api/google/drive/files${path}`;
+}
+
+// Helper to get current user ID
+async function getCurrentUserId() {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id;
 }
 
 // Create a new file in Google Drive
 export const createGoogleDriveFile = async (content, fileName, accessToken, parentFolderId = null) => {
-  // Use default folder if no parent folder is specified
-  const targetFolderId = parentFolderId || DEFAULT_GOOGLE_DRIVE_FOLDER_ID
+  const targetFolderId = parentFolderId || DEFAULT_GOOGLE_DRIVE_FOLDER_ID;
+  const userId = await getCurrentUserId();
   console.log('Creating Google Drive file:', { fileName, parentFolderId, targetFolderId, isReal: isRealGoogleConfigured() })
   
   if (!isRealGoogleConfigured()) {
@@ -197,6 +202,9 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
     }
 
     const data = await response.json()
+    if (response.status === 403) {
+      throw new Error('Re-authentication required by admin policy. Please reconnect to Google Drive.');
+    }
     return { success: true, ...data }
   } catch (error) {
     console.error('Create Google Drive file error:', error)
@@ -206,6 +214,7 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
 
 // Upload content to an existing Google Drive file
 export const updateGoogleDriveFile = async (fileId, content, accessToken) => {
+  const userId = await getCurrentUserId();
   if (!isRealGoogleConfigured()) {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -240,7 +249,7 @@ export const updateGoogleDriveFile = async (fileId, content, accessToken) => {
       },
       body: JSON.stringify({
         accessToken,
-        fileName,
+        fileName: undefined, // Not needed for update
         content
       })
     })
@@ -250,6 +259,9 @@ export const updateGoogleDriveFile = async (fileId, content, accessToken) => {
     }
 
     const data = await response.json()
+    if (response.status === 403) {
+      throw new Error('Re-authentication required by admin policy. Please reconnect to Google Drive.');
+    }
     return { success: true, ...data }
   } catch (error) {
     console.error('Update Google Drive file error:', error)

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { usePolicy } from '../context/PolicyContext'
+import { usePolicy, fetchLatestUserPolicy } from '../context/PolicyContext'
 import { getAppIcon } from './AppIcons'
 import { 
   Send, 
@@ -29,6 +29,7 @@ import {
   extractGoogleDriveFileId,
   getValidGoogleConnection
 } from '../services/googleDriveAuth'
+import { supabase } from '../lib/supabase.js'
 
 // Import configs for integration status check
 const NOTION_CONFIG = {
@@ -39,13 +40,26 @@ const GOOGLE_CONFIG = {
   clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your_google_client_id_here'
 }
 
+// Helper to fetch policy from Supabase
+async function fetchSupabasePolicy(role, provider) {
+  const { data, error } = await supabase
+    .from('connection_policies')
+    .select('connection_duration_hours, auto_disconnect, allowed')
+    .eq('role', role)
+    .eq('provider', provider)
+    .single();
+  if (error || !data) return null;
+  return data;
+}
+
 const ChatInterface = ({ uploadedFile, fileContent }) => {
   const { 
     getCurrentUserPolicy, 
     isAppAllowed, 
     addActiveConnection,
     removeActiveConnection,
-    addUserIntegration
+    addUserIntegration,
+    currentUserGroup
   } = usePolicy()
   
   const [messages, setMessages] = useState([
@@ -84,45 +98,48 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     return url.includes('notion.so') || url.includes('notion.com')
   }
 
-  const performNotionAuth = async () => {
+  const performNotionAuth = async (latestPolicy) => {
     try {
-      // Check if we already have a valid token
-      const existingToken = getNotionToken('gabby')
-      if (existingToken && await isTokenValid()) {
-        return { success: true, accessToken: existingToken }
+      if (latestPolicy.autoDisconnect) {
+        // Always force fresh authentication, never reuse token
+        const result = await authenticateNotion();
+        // Store token for demo/local only
+        const token = 'authenticated';
+        storeNotionToken('gabby', token);
+        return { success: true, accessToken: token };
+      } else {
+        // Check if we already have a valid token (for demo/local only)
+        const existingToken = getNotionToken('gabby');
+        if (existingToken && await isTokenValid()) {
+          return { success: true, accessToken: existingToken };
+        }
+        // Authenticate with Notion
+        const result = await authenticateNotion();
+        // Store token for future use
+        const token = 'authenticated';
+        storeNotionToken('gabby', token);
+        return { success: true, accessToken: token };
       }
-      
-      // Authenticate with Notion
-      const result = await authenticateNotion()
-      
-      // Store token for future use
-      const token = 'authenticated'
-      storeNotionToken('gabby', token)
-      
-      return { success: true, accessToken: token }
     } catch (error) {
-      console.error('Notion auth error:', error)
-      return { success: false, error: error.message }
+      console.error('Notion auth error:', error);
+      return { success: false, error: error.message };
     }
   }
 
-  const performGoogleOAuth = async () => {
+  const performGoogleOAuth = async (latestPolicy) => {
     try {
-      // Always get the latest policy
-      const userPolicy = getCurrentUserPolicy();
-      if (userPolicy.autoDisconnect) {
-        const validConnection = await getValidGoogleConnection();
-        if (validConnection) {
-          await supabase.from('oauth_connections').delete().eq('id', validConnection.id);
-        }
+      if (latestPolicy.autoDisconnect) {
+        // Always force fresh OAuth, never reuse any connection
         const result = await authenticateWithGoogle();
         if (result.success) {
+          // Get the new connection (if needed for access token)
           const newConnection = await getValidGoogleConnection();
-          return { success: true, accessToken: newConnection?.access_token, connectionId: newConnection?.id };
+          return { success: true, accessToken: newConnection?.access_token };
         } else {
           return { success: false, error: result.error || 'OAuth was cancelled' };
         }
       } else {
+        // Reuse if valid, else OAuth
         const validConnection = await getValidGoogleConnection();
         if (validConnection) {
           return { success: true, accessToken: validConnection.access_token, connectionId: validConnection.id };
@@ -136,8 +153,8 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         }
       }
     } catch (error) {
-      console.error('Google OAuth error:', error)
-      return { success: false, error: error.message }
+      console.error('Google OAuth error:', error);
+      return { success: false, error: error.message };
     }
   }
 
@@ -198,12 +215,31 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       return
     }
 
+    // Fetch Gabby's role from Supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    const role = userProfile?.role || 'sales';
+    // Fetch latest policy for this role and provider
+    const provider = service === 'google-drive' ? 'google' : service;
+    const policy = await fetchSupabasePolicy(role, provider);
+    if (!policy || !policy.allowed) {
+      addMessage(`${service} integration is not allowed for your user group (per Supabase policy).`, 'assistant');
+      return;
+    }
+
     if (!isAppAllowed(service)) {
       addMessage(`${service} integration is not allowed for your user group.`, 'assistant')
       return
     }
 
     setIsProcessing(true)
+
+    // Fetch the latest policy before integration
+    const latestPolicy = await fetchLatestUserPolicy(currentUserGroup)
 
     // Step 1: OAuth Flow
     let oauthResult
@@ -216,7 +252,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       } else {
         addMessage('Connecting to Notion... (API Key)', 'assistant')
       }
-      oauthResult = await performNotionAuth()
+      oauthResult = await performNotionAuth(latestPolicy)
     } else if (service === 'google-drive') {
       isRealIntegration = GOOGLE_CONFIG.clientId !== 'your_google_client_id_here'
       if (!isRealIntegration) {
@@ -224,7 +260,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       } else {
         addMessage('Connecting to Google Drive... (OAuth)', 'assistant')
       }
-      oauthResult = await performGoogleOAuth()
+      oauthResult = await performGoogleOAuth(latestPolicy)
     }
     
     if (!oauthResult.success) {
@@ -236,11 +272,20 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     // Step 2: Content Transfer
     addMessage(`Sending content to ${service}...`, 'assistant')
     let transferResult
-    
-    if (service === 'notion') {
-      transferResult = await transferContentToNotion(fileContent, targetUrl)
-    } else if (service === 'google-drive') {
-      transferResult = await transferContentToGoogleDrive(fileContent, targetUrl, oauthResult.accessToken)
+    try {
+      if (service === 'notion') {
+        transferResult = await transferContentToNotion(fileContent, targetUrl)
+      } else if (service === 'google-drive') {
+        transferResult = await transferContentToGoogleDrive(fileContent, targetUrl, oauthResult.accessToken)
+      }
+    } catch (error) {
+      if (error.message && error.message.includes('Re-authentication required')) {
+        addMessage(`🔒 ${error.message}`, 'assistant');
+      } else {
+        addMessage(`Failed to send content to ${service}. Please try again.`, 'assistant');
+      }
+      setIsProcessing(false)
+      return
     }
     
     if (!transferResult.success) {
@@ -250,50 +295,43 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
 
     // Step 3: Success and Policy Application
-    const connectionId = 'conn_' + Date.now()
-    const now = new Date().toISOString()
-    
-    // Add to active connections for immediate display
-    const connection = {
-      id: connectionId,
-      user: 'Demo User',
-      app: service,
-      connectedAt: 'just now',
-      status: 'Active',
-      expiresAt: getCurrentUserPolicy().autoDisconnect ? 'Will auto-disconnect' : '24 hours'
-    }
-    addActiveConnection(connection)
+    const connectionId = 'conn_' + Date.now();
+    const now = new Date().toISOString();
 
-    // Add to user integration history
-    const userIntegration = {
-      id: connectionId,
-      app: service,
-      connectedAt: now,
-      lastActivity: now,
-      status: getCurrentUserPolicy().autoDisconnect ? 'inactive' : 'active',
-      // Always set contentPreview for Activity Log
-      contentPreview: uploadedFile
-        ? `${uploadedFile.name}: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`
-        : fileContent.substring(0, 100) + (fileContent.length > 100 ? '...' : ''),
-      ...(getCurrentUserPolicy().autoDisconnect 
-        ? { reason: 'auto-disconnect policy' }
-        : { 
-            expiresAt: getCurrentUserPolicy().connectionDuration === 'persistent' 
-              ? 'persistent' 
-              : getCurrentUserPolicy().connectionDuration === '24h' 
-                ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Default to 24h
-          }
-      )
+    // Only add to active connections and user integration history if NOT autoDisconnect
+    if (!latestPolicy.autoDisconnect) {
+      const connection = {
+        id: connectionId,
+        user: 'Demo User',
+        app: service,
+        connectedAt: 'just now',
+        status: 'Active',
+        expiresAt: latestPolicy.connectionDuration === 'persistent' ? 'persistent' : '24 hours'
+      };
+      addActiveConnection(connection);
+
+      const userIntegration = {
+        id: connectionId,
+        app: service,
+        connectedAt: now,
+        lastActivity: now,
+        status: 'active',
+        contentPreview: uploadedFile
+          ? `${uploadedFile.name}: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`
+          : fileContent.substring(0, 100) + (fileContent.length > 100 ? '...' : ''),
+        expiresAt: latestPolicy.connectionDuration === 'persistent'
+          ? 'persistent'
+          : latestPolicy.connectionDuration === '24h'
+            ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+            : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      };
+      addUserIntegration('gabby', userIntegration);
     }
-    
-    // Add to Gabby's integration history
-    addUserIntegration('gabby', userIntegration)
 
     // Success messages
     const authMethod = isRealIntegration 
       ? (service === 'notion' ? ' (Personal API Key)' : ' (OAuth)')
-      : ' (Demo Mode)'
+      : ' (Demo Mode)';
     
     if (targetUrl) {
       if (service === 'notion') {
@@ -315,18 +353,17 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
 
     // Step 4: Policy Enforcement
-    if (getCurrentUserPolicy().autoDisconnect && oauthResult.connectionId) {
-      // Remove the connection from Supabase after use
-      await supabase
-        .from('oauth_connections')
-        .delete()
-        .eq('id', oauthResult.connectionId)
+    if (latestPolicy.autoDisconnect) {
       setTimeout(() => {
-        addMessage(`🔒 Connection closed for security (auto-disconnect policy)${authMethod}`, 'assistant')
-        removeActiveConnection(connectionId)
-      }, 3000)
+        addMessage(`🔒 Connection closed for security (auto-disconnect policy)${authMethod}`, 'assistant');
+      }, 300);
     } else {
-      addMessage(`🔗 Connection active for 24 hours per Sales team policy${authMethod}`, 'assistant')
+      addMessage(
+        latestPolicy.connectionDuration === 'persistent'
+          ? `🔗 Connection is persistent per policy${authMethod}`
+          : `🔗 Connection active for 24 hours per policy${authMethod}`,
+        'assistant'
+      );
     }
 
     setIsProcessing(false)
