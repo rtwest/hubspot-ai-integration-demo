@@ -225,6 +225,18 @@ src/
 
 MIT License - see LICENSE file for details
 
+## Production Setup: Supabase Edge Functions
+
+To ensure Google OAuth and Drive integrations work in production, set the following environment variable in your deployment platform (e.g., Vercel, Netlify):
+
+```
+VITE_SUPABASE_FUNCTIONS_URL=https://<your-project-ref>.functions.supabase.co
+```
+
+Replace `<your-project-ref>` with your actual Supabase project ref (found in your Supabase dashboard).
+
+This variable is used by the frontend to call Supabase Edge Functions directly in production.
+
 ---
 
 **Built for HubSpot AI Integration Demo** 🚀 

@@ -1,6 +1,16 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
+// Helper to get Supabase Edge Function base URL
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || ''
+
+function getGoogleOAuthUrl() {
+  if (SUPABASE_FUNCTIONS_URL) {
+    return `${SUPABASE_FUNCTIONS_URL}/oauth-google`
+  }
+  return '/api/google/token'
+}
+
 const GoogleCallback = () => {
   const [searchParams] = useSearchParams()
 
@@ -26,7 +36,7 @@ const GoogleCallback = () => {
 
   const exchangeCodeForTokens = async (code, state) => {
     try {
-      const response = await fetch('/api/google/token', {
+      const response = await fetch(getGoogleOAuthUrl(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

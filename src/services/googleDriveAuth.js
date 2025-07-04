@@ -114,6 +114,17 @@ export const authenticateWithGoogle = async () => {
 // Default Google Drive folder ID for when no specific parent is provided
 const DEFAULT_GOOGLE_DRIVE_FOLDER_ID = '1d3Pgsywd7t3s3IHbxfmWY3GdZzsTrKFs'
 
+// Helper to get Supabase Edge Function base URL
+const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || ''
+
+function getGoogleApiUrl(path) {
+  // In dev, you may want to proxy to /api/google/drive/files, but in prod use the full URL
+  if (SUPABASE_FUNCTIONS_URL) {
+    return `${SUPABASE_FUNCTIONS_URL}/google-api${path}`
+  }
+  return `/api/google/drive/files${path}`
+}
+
 // Create a new file in Google Drive
 export const createGoogleDriveFile = async (content, fileName, accessToken, parentFolderId = null) => {
   // Use default folder if no parent folder is specified
@@ -152,7 +163,7 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
   }
 
   try {
-    const response = await fetch('/api/google/drive/files', {
+    const response = await fetch(getGoogleApiUrl(''), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -203,13 +214,14 @@ export const updateGoogleDriveFile = async (fileId, content, accessToken) => {
   }
 
   try {
-    const response = await fetch(`/api/google/drive/files/${fileId}`, {
-      method: 'PATCH',
+    const response = await fetch(getGoogleApiUrl(`/${fileId}`), {
+      method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         accessToken,
+        fileName,
         content
       })
     })
