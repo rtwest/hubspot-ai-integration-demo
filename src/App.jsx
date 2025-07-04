@@ -1,13 +1,28 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { PolicyProvider } from './context/PolicyContext.jsx'
 import AdminView from './components/AdminView.jsx'
 import EndUserView from './components/EndUserView.jsx'
 import NotionCallback from './pages/NotionCallback.jsx'
 import GoogleCallback from './pages/GoogleCallback.jsx'
+import Auth from './components/Auth.jsx'
+import { supabase } from './lib/supabase.js'
 
 function App() {
   const [currentView, setCurrentView] = useState('endUser')
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+    return () => listener?.subscription.unsubscribe()
+  }, [])
+
+  if (!user) {
+    return <Auth />
+  }
 
   return (
     <PolicyProvider>
