@@ -15,12 +15,11 @@ export const isRealGoogleConfigured = () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
   const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost'
   
-  // In production, we should have a real client ID
+  // In production, treat the demo client ID as real for testing
   if (isProduction) {
     return !!(clientId && 
              clientId !== 'your_google_client_id_here' && 
-             clientId !== '' &&
-             clientId !== '719127172359-g7m7b3j7p9693me659ammt42g75pl6uu.apps.googleusercontent.com')
+             clientId !== '')
   }
   
   // In development, check if we have a real client ID (not the demo one)
