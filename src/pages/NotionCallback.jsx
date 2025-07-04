@@ -21,10 +21,7 @@ const NotionCallback = () => {
       }, window.location.origin)
     }
     
-    // Close the popup window
-    setTimeout(() => {
-      window.close()
-    }, 1000)
+    // Let the popup handle its own closing
   }, [])
 
   return (

@@ -30,39 +30,15 @@ const simulateGoogleOAuth = () => {
       'width=500,height=600,scrollbars=yes,resizable=yes'
     )
 
-    const checkClosed = setInterval(() => {
-      try {
-        if (popup.closed) {
-          clearInterval(checkClosed)
-          // Simulate successful OAuth
-          resolve({
-            access_token: 'demo_google_access_token_' + Math.random().toString(36).substr(2, 9),
-            refresh_token: 'demo_google_refresh_token_' + Math.random().toString(36).substr(2, 9),
-            expires_in: 3600
-          })
-        }
-      } catch (error) {
-        // Handle Cross-Origin-Opener-Policy errors
-        console.log('OAuth popup check - continuing...')
-      }
-    }, 100)
+    // Remove the problematic popup.closed check for demo mode
+    // Demo mode will rely on the message listener instead
 
     // Listen for OAuth completion message
     window.addEventListener('message', (event) => {
       if (event.origin !== window.location.origin) return
       if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
-        try {
-          popup.close()
-        } catch (error) {
-          console.log('Could not close popup - continuing...')
-        }
         resolve(event.data.tokens)
       } else if (event.data.type === 'GOOGLE_OAUTH_CANCELLED') {
-        try {
-          popup.close()
-        } catch (error) {
-          console.log('Could not close popup - continuing...')
-        }
         resolve(null)
       }
     })
@@ -98,28 +74,10 @@ const performGoogleOAuth = () => {
       if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
         // Remove the event listener first
         window.removeEventListener('message', messageHandler)
-        
-        // Try to close popup, but don't let errors stop the flow
-        if (popup && !popup.closed) {
-          try {
-            popup.close()
-          } catch (error) {
-            console.log('Could not close popup - continuing...')
-          }
-        }
         resolve(event.data.tokens)
       } else if (event.data.type === 'GOOGLE_OAUTH_CANCELLED') {
         // Remove the event listener first
         window.removeEventListener('message', messageHandler)
-        
-        // Try to close popup, but don't let errors stop the flow
-        if (popup && !popup.closed) {
-          try {
-            popup.close()
-          } catch (error) {
-            console.log('Could not close popup - continuing...')
-          }
-        }
         resolve(null)
       }
     }
@@ -129,13 +87,6 @@ const performGoogleOAuth = () => {
     // Add a timeout to prevent hanging
     setTimeout(() => {
       window.removeEventListener('message', messageHandler)
-      if (popup && !popup.closed) {
-        try {
-          popup.close()
-        } catch (error) {
-          console.log('Could not close popup - continuing...')
-        }
-      }
       resolve(null)
     }, 300000) // 5 minute timeout
   })

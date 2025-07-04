@@ -22,14 +22,16 @@ export const authenticateNotion = () => {
       
       // Simulate the authentication flow
       setTimeout(() => {
-        if (popup && !popup.closed) {
+        try {
           // Send success message to parent window
           window.postMessage({
             type: 'NOTION_AUTH_SUCCESS',
             token: 'demo_token_' + Date.now()
           }, window.location.origin)
           
-          popup.close()
+          popup?.close()
+        } catch (error) {
+          console.log('Could not close popup - continuing...')
         }
       }, 2000)
       
@@ -48,14 +50,8 @@ export const authenticateNotion = () => {
       
       window.addEventListener('message', handleMessage)
       
-      // Handle popup closed
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed)
-          window.removeEventListener('message', handleMessage)
-          reject(new Error('Authentication popup was closed'))
-        }
-      }, 1000)
+      // Remove problematic popup.closed check
+      // The message listener will handle OAuth completion
     })
   }
   

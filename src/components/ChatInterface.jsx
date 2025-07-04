@@ -353,6 +353,8 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
   const handleDrop = (e) => {
     e.preventDefault()
     setIsDragOver(false)
+    // Reset cursor back to normal
+    e.currentTarget.style.cursor = 'default'
     
     console.log('Drop event triggered')
     const url = e.dataTransfer.getData('text/plain')
@@ -387,12 +389,16 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     setIsDragOver(true)
     // Change cursor to electrical plug
     e.dataTransfer.dropEffect = 'copy'
+    // Set custom cursor for electric plug
+    e.currentTarget.style.cursor = 'url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMgMkwyMCA5TDEzIDE2TDEyIDE2TDUgOUwxMiAyWiIgZmlsbD0iIzAwNzNGQyIvPgo8cGF0aCBkPSJNMTIgMjJMMTMgMjJMMjAgMTVMMTMgOEwxMiA4TDUgMTVMMTIgMjJaIiBmaWxsPSIjMDA3M0ZDIi8+CjxwYXRoIGQ9Ik0xMiAxMkwxMyAxMkwxMyAxNkwxMiAxNkwxMiAxMloiIGZpbGw9IiMwMDczRkMiLz4KPC9zdmc+"), auto'
   }
 
   const handleDragLeave = (e) => {
     e.preventDefault()
     console.log('Drag leave event triggered')
     setIsDragOver(false)
+    // Reset cursor back to normal
+    e.currentTarget.style.cursor = 'default'
   }
 
   const getMessageIcon = (type) => {
@@ -426,7 +432,6 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
           console.log('Drag enter detected');
         }}
         style={{
-          cursor: isDragOver ? 'copy' : 'default',
           minHeight: '300px' // Ensure minimum height for drop area
         }}
       >

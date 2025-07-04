@@ -15,13 +15,6 @@ const GoogleCallback = () => {
         type: 'GOOGLE_OAUTH_CANCELLED',
         error: error
       }, window.location.origin)
-      
-      // Try to close the window, but don't let errors stop the flow
-      try {
-        window.close()
-      } catch (error) {
-        console.log('Could not close popup window - continuing...')
-      }
       return
     }
 
@@ -61,13 +54,6 @@ const GoogleCallback = () => {
         type: 'GOOGLE_OAUTH_CANCELLED',
         error: 'Token exchange failed'
       }, window.location.origin)
-    }
-    
-    // Try to close the window, but don't let errors stop the flow
-    try {
-      window.close()
-    } catch (error) {
-      console.log('Could not close popup window - continuing...')
     }
   }
 
