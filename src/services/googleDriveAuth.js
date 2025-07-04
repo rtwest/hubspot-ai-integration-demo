@@ -4,7 +4,7 @@
 const GOOGLE_CONFIG = {
   clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
   clientSecret: import.meta.env.VITE_GOOGLE_CLIENT_SECRET,
-  redirectUri: `${window.location.origin}/auth/google/callback`,
+  redirectUri: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/google/callback`,
   scopes: ['https://www.googleapis.com/auth/drive.file'],
   authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
   tokenUrl: 'https://oauth2.googleapis.com/token'
