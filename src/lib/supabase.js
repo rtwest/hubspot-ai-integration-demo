@@ -48,8 +48,13 @@ export const googleOAuth = {
 
   // Exchange code for tokens
   exchangeCode: async (code) => {
+    // Get the Supabase JWT
+    const { data: { session } } = await supabase.auth.getSession()
+    const jwt = session?.access_token
+
     const { data, error } = await supabase.functions.invoke('oauth-google', {
-      body: { code, redirect_uri: `${window.location.origin}/auth/google/callback` }
+      body: { code, redirect_uri: `${window.location.origin}/auth/google/callback` },
+      headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
     })
     
     if (error) throw error

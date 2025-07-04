@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
+import { supabase, googleOAuth } from '../lib/supabase.js'
 
 // Helper to get Supabase Edge Function base URL
 const SUPABASE_FUNCTIONS_URL = import.meta.env.VITE_SUPABASE_FUNCTIONS_URL || ''
@@ -37,34 +37,12 @@ const GoogleCallback = () => {
 
   const exchangeCodeForTokens = async (code, state) => {
     try {
-      // Get the Supabase JWT
-      const { data: { session } } = await supabase.auth.getSession()
-      const jwt = session?.access_token
-
-      const response = await fetch(getGoogleOAuthUrl(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
-        },
-        body: JSON.stringify({
-          code,
-          state,
-          redirect_uri: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/google/callback`
-        })
-      })
-
-      if (response.ok) {
-        const tokens = await response.json()
-        
-        // Send tokens back to parent window
-        window.opener?.postMessage({
-          type: 'GOOGLE_OAUTH_SUCCESS',
-          tokens: tokens
-        }, window.location.origin)
-      } else {
-        throw new Error('Failed to exchange code for tokens')
-      }
+      const tokens = await googleOAuth.exchangeCode(code)
+      // Send tokens back to parent window
+      window.opener?.postMessage({
+        type: 'GOOGLE_OAUTH_SUCCESS',
+        tokens: tokens
+      }, window.location.origin)
     } catch (error) {
       console.error('Token exchange error:', error)
       window.opener?.postMessage({
