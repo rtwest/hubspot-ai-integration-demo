@@ -40,7 +40,7 @@ export const googleOAuth = {
   // Get Google OAuth URL
   getAuthUrl: () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    const redirectUri = `${window.location.origin}/auth/google/callback`
+    const redirectUri = `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/google/callback`
     const scope = 'https://www.googleapis.com/auth/drive.file'
     
     return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&response_type=code&scope=${encodeURIComponent(scope)}&redirect_uri=${encodeURIComponent(redirectUri)}`
@@ -53,7 +53,7 @@ export const googleOAuth = {
     const jwt = session?.access_token
 
     const { data, error } = await supabase.functions.invoke('oauth-google', {
-      body: { code, redirect_uri: `${window.location.origin}/auth/google/callback` },
+      body: { code, redirect_uri: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/google/callback` },
       headers: jwt ? { Authorization: `Bearer ${jwt}` } : {}
     })
     
