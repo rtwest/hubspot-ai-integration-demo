@@ -79,6 +79,7 @@ export const createNotionPage = async (content, parentPageId = null) => {
           url: pageUrl,
           title: 'Content from HubSpot AI Integration',
           content: content,
+          parentPageId: parentPageId,
           createdAt: new Date().toISOString()
         })
         localStorage.setItem('demo_notion_pages', JSON.stringify(demoPages))
@@ -93,14 +94,16 @@ export const createNotionPage = async (content, parentPageId = null) => {
   }
   
   try {
-    const response = await fetch('/api/notion/pages', {
+    const response = await fetch('http://127.0.0.1:54321/functions/v1/notion-api', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        parentPageId,
-        content
+        action: 'create_page',
+        content: content,
+        parent_page_id: parentPageId,
+        api_key: import.meta.env.VITE_NOTION_API_KEY
       })
     })
     
@@ -113,8 +116,8 @@ export const createNotionPage = async (content, parentPageId = null) => {
     const data = await response.json()
     return {
       success: true,
-      pageUrl: data.url,
-      pageId: data.id
+      pageUrl: data.data?.url || data.url,
+      pageId: data.data?.id || data.id
     }
   } catch (error) {
     console.error('Create page error:', error)
@@ -178,13 +181,16 @@ export const updateNotionPage = async (pageUrl, content) => {
     
     const formattedPageId = toNotionUUID(pageId)
     
-    const response = await fetch(`/api/notion/pages/${formattedPageId}`, {
-      method: 'PATCH',
+    const response = await fetch('http://127.0.0.1:54321/functions/v1/notion-api', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        content
+        action: 'update_page',
+        content: content,
+        target_url: pageUrl,
+        api_key: import.meta.env.VITE_NOTION_API_KEY
       })
     })
     
@@ -209,13 +215,25 @@ export const updateNotionPage = async (pageUrl, content) => {
   }
 }
 
-export const appendToNotionPage = async (pageUrl, content) => {
+// Utility to extract Notion page ID from any valid Notion URL
+export function extractNotionPageId(url) {
+  // Match 32 hex chars, with or without dashes
+  const match = url.match(/([a-f0-9]{32})|([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i);
+  if (!match) return null;
+  // Remove dashes if present
+  return match[0].replace(/-/g, '');
+}
+
+export async function appendToNotionPage(pageUrl, content) {
+  const pageId = extractNotionPageId(pageUrl);
+  console.log('Extracted Notion page ID:', pageId);
+  if (!pageId) throw new Error('Invalid Notion page ID');
+  
   // If real Notion integration is not configured, simulate appending content
   if (!isRealNotionConfigured()) {
     return new Promise((resolve) => {
       setTimeout(() => {
         // Extract page ID from URL and update the stored page
-        const pageId = pageUrl.split('/').pop().split('?')[0]
         const demoPages = JSON.parse(localStorage.getItem('demo_notion_pages') || '[]')
         const pageIndex = demoPages.findIndex(page => page.id === pageId)
         
@@ -235,22 +253,16 @@ export const appendToNotionPage = async (pageUrl, content) => {
   }
   
   try {
-    // Extract page ID from URL
-    const pageId = pageUrl.split('/').pop().split('?')[0]
-    
-    if (!isValidNotionId(pageId)) {
-      throw new Error('Invalid Notion page ID')
-    }
-    
-    const formattedPageId = toNotionUUID(pageId)
-    
-    const response = await fetch(`/api/notion/blocks/${formattedPageId}/children`, {
-      method: 'PATCH',
+    const response = await fetch('http://127.0.0.1:54321/functions/v1/notion-api', {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        content
+        action: 'update_page',
+        content: content,
+        target_url: pageUrl,
+        api_key: import.meta.env.VITE_NOTION_API_KEY
       })
     })
     
@@ -263,8 +275,8 @@ export const appendToNotionPage = async (pageUrl, content) => {
     const data = await response.json()
     return {
       success: true,
-      pageUrl: pageUrl,
-      pageId: data.id
+      pageUrl: data.data?.url || pageUrl,
+      pageId: data.data?.id || pageId
     }
   } catch (error) {
     console.error('Append to page error:', error)

@@ -16,6 +16,7 @@ import {
   createNotionPage,
   updateNotionPage,
   appendToNotionPage,
+  extractNotionPageId,
   storeNotionToken,
   getNotionToken,
   isTokenValid
@@ -122,12 +123,20 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
   const transferContentToNotion = async (content, targetUrl = null) => {
     try {
+      // Default parent page ID for mentions (your Seamless Integration Demo page)
+      const defaultParentPageId = '224cd3375162804c881bee78377d53ce'
+      
       if (targetUrl) {
-        // Append to existing page
-        return await appendToNotionPage(targetUrl, content)
+        // Extract parent page ID from the URL for creating new pages under this parent
+        const parentPageId = extractNotionPageId(targetUrl)
+        console.log('Extracted parent page ID from URL:', parentPageId)
+        
+        // Create new page under the parent page
+        return await createNotionPage(content, parentPageId)
       } else {
-        // Create new page
-        return await createNotionPage(content)
+        // For mentions, use the default parent page
+        console.log('Using default parent page for mention:', defaultParentPageId)
+        return await createNotionPage(content, defaultParentPageId)
       }
     } catch (error) {
       console.error('Content transfer error:', error)
@@ -268,7 +277,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     
     if (targetUrl) {
       if (service === 'notion') {
-        addMessage(`✅ Content successfully added to your Notion page!${authMethod}\n\n📄 Page: ${transferResult.pageUrl}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
+        addMessage(`✅ Content successfully created as a new page under your Notion page!${authMethod}\n\n📄 Parent page: ${targetUrl}\n📄 New page: ${transferResult.pageUrl}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
       } else if (service === 'google-drive') {
         if (targetUrl.includes('/folders/')) {
           addMessage(`✅ Content successfully saved to your Google Drive folder!${authMethod}\n\n📁 Folder: ${targetUrl}\n📄 New file: ${transferResult.webViewLink}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
@@ -278,7 +287,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       }
     } else {
       if (service === 'notion') {
-        addMessage(`✅ Content successfully sent to Notion!${authMethod}\n\n📄 New page created: ${transferResult.pageUrl}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
+        addMessage(`✅ Content successfully sent to Notion!${authMethod}\n\n📄 New page created under your demo page: ${transferResult.pageUrl}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
       } else if (service === 'google-drive') {
         addMessage(`✅ Content successfully saved to Google Drive!${authMethod}\n\n📄 New file created: ${transferResult.webViewLink}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
       }

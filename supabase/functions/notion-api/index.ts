@@ -13,40 +13,32 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
+    // Always parse the body first
+    const { action, content, target_url, parent_page_id, api_key } = await req.json()
+    
+    // If no API key in body, require Authorization header
+    if (!api_key) {
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Missing authorization header' 
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        )
       }
-    )
-
-    // Get current user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
-    if (userError || !user) {
-      throw new Error('User not authenticated')
     }
 
-    // Get user's Notion connection
-    const { data: connection, error: connectionError } = await supabaseClient
-      .from('oauth_connections')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('provider', 'notion')
-      .single()
-
-    if (connectionError || !connection) {
-      throw new Error('Notion connection not found')
+    // Use API key from request if provided, otherwise use environment variable
+    const notionApiKey = api_key || Deno.env.get('VITE_NOTION_API_KEY')
+    
+    if (!notionApiKey) {
+      throw new Error('Notion API key not provided')
     }
-
-    // Check if token is expired
-    if (connection.expires_at && new Date(connection.expires_at) < new Date()) {
-      throw new Error('Notion token expired')
-    }
-
-    const { action, content, target_url } = await req.json()
 
     let notionResponse
     let success = false
@@ -55,43 +47,69 @@ serve(async (req) => {
     try {
       switch (action) {
         case 'create_page':
-          notionResponse = await fetch('https://api.notion.com/v1/pages', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${connection.access_token}`,
-              'Notion-Version': '2022-06-28',
-              'Content-Type': 'application/json'
+          // Determine parent configuration
+          let parentConfig
+          if (parent_page_id && parent_page_id !== null && parent_page_id !== undefined && parent_page_id !== '') {
+            // Convert page ID to proper UUID format for Notion API
+            const formatPageId = (id) => {
+              const clean = id.replace(/-/g, '');
+              if (clean.length !== 32) return id;
+              return [
+                clean.substr(0, 8),
+                clean.substr(8, 4),
+                clean.substr(12, 4),
+                clean.substr(16, 4),
+                clean.substr(20)
+              ].join('-');
+            };
+            
+            const formattedParentId = formatPageId(parent_page_id)
+            // Create page under specific parent page
+            parentConfig = { page_id: formattedParentId }
+          } else {
+            // Create page in workspace
+            parentConfig = { workspace: true }
+          }
+          
+          const requestBody = {
+            parent: parentConfig,
+            properties: {
+              title: {
+                title: [
+                  {
+                    text: {
+                      content: 'Content from HubSpot AI Integration'
+                    }
+                  }
+                ]
+              }
             },
-            body: JSON.stringify({
-              parent: { type: 'workspace' },
-              properties: {
-                title: {
-                  title: [
+            children: [
+              {
+                object: 'block',
+                type: 'paragraph',
+                paragraph: {
+                  rich_text: [
                     {
+                      type: 'text',
                       text: {
-                        content: 'Content from HubSpot AI Integration'
+                        content: content
                       }
                     }
                   ]
                 }
-              },
-              children: [
-                {
-                  object: 'block',
-                  type: 'paragraph',
-                  paragraph: {
-                    rich_text: [
-                      {
-                        type: 'text',
-                        text: {
-                          content: content
-                        }
-                      }
-                    ]
-                  }
-                }
-              ]
-            })
+              }
+            ]
+          }
+          
+          notionResponse = await fetch('https://api.notion.com/v1/pages', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${notionApiKey}`,
+              'Notion-Version': '2022-06-28',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
           })
           break
 
@@ -100,16 +118,31 @@ serve(async (req) => {
             throw new Error('Target URL is required for page updates')
           }
           
-          // Extract page ID from URL
+          // Extract page ID from URL and format as UUID
           const pageId = target_url.split('/').pop()?.split('?')[0]
           if (!pageId) {
             throw new Error('Invalid Notion page URL')
           }
+          
+          // Convert to proper UUID format if needed
+          const formatPageId = (id) => {
+            const clean = id.replace(/-/g, '');
+            if (clean.length !== 32) return id;
+            return [
+              clean.substr(0, 8),
+              clean.substr(8, 4),
+              clean.substr(12, 4),
+              clean.substr(16, 4),
+              clean.substr(20)
+            ].join('-');
+          }
+          
+          const formattedPageId = formatPageId(pageId)
 
-          notionResponse = await fetch(`https://api.notion.com/v1/blocks/${pageId}/children`, {
+          notionResponse = await fetch(`https://api.notion.com/v1/blocks/${formattedPageId}/children`, {
             method: 'PATCH',
             headers: {
-              'Authorization': `Bearer ${connection.access_token}`,
+              'Authorization': `Bearer ${notionApiKey}`,
               'Notion-Version': '2022-06-28',
               'Content-Type': 'application/json'
             },
@@ -142,16 +175,6 @@ serve(async (req) => {
         success = true
         const responseData = await notionResponse.json()
         
-        // Log successful activity
-        await supabaseClient.rpc('log_integration_activity', {
-          user_uuid: user.id,
-          provider_name: 'notion',
-          action_name: action,
-          content_preview: content?.substring(0, 100),
-          target_url: target_url,
-          success_status: true
-        })
-
         return new Response(
           JSON.stringify({ 
             success: true, 
@@ -164,25 +187,22 @@ serve(async (req) => {
           }
         )
       } else {
-        errorMessage = await notionResponse.text()
-        throw new Error(`Notion API error: ${notionResponse.status}`)
+        // Try to get the full error message from Notion
+        let errorText = await notionResponse.text()
+        let errorJson
+        try {
+          errorJson = JSON.parse(errorText)
+        } catch (e) {
+          errorJson = { error: errorText }
+        }
+        errorMessage = errorJson
+        throw new Error(`Notion API error: ${notionResponse.status} - ${JSON.stringify(errorJson)}`)
       }
 
     } catch (apiError) {
       errorMessage = apiError.message
       success = false
     }
-
-    // Log failed activity
-    await supabaseClient.rpc('log_integration_activity', {
-      user_uuid: user.id,
-      provider_name: 'notion',
-      action_name: action,
-      content_preview: content?.substring(0, 100),
-      target_url: target_url,
-      success_status: false,
-      error_msg: errorMessage
-    })
 
     return new Response(
       JSON.stringify({ 

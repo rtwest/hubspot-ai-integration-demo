@@ -6,12 +6,17 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    strictPort: true,
     open: true,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'unsafe-none'
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://127.0.0.1:54321',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/functions/v1')
       }
     }
   },

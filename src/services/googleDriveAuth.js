@@ -51,7 +51,6 @@ const simulateGoogleOAuth = () => {
     window.addEventListener('message', (event) => {
       if (event.origin !== window.location.origin) return
       if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
-        clearInterval(checkClosed)
         try {
           popup.close()
         } catch (error) {
@@ -59,7 +58,6 @@ const simulateGoogleOAuth = () => {
         }
         resolve(event.data.tokens)
       } else if (event.data.type === 'GOOGLE_OAUTH_CANCELLED') {
-        clearInterval(checkClosed)
         try {
           popup.close()
         } catch (error) {
@@ -91,22 +89,13 @@ const performGoogleOAuth = () => {
       'width=500,height=600,scrollbars=yes,resizable=yes'
     )
 
-    const checkClosed = setInterval(() => {
-      try {
-        if (popup.closed) {
-          clearInterval(checkClosed)
-          resolve(null)
-        }
-      } catch (error) {
-        console.log('OAuth popup check - continuing...')
-      }
-    }, 100)
+    // Remove the problematic popup.closed check entirely
+    // The message listener will handle OAuth completion
 
     // Listen for OAuth completion message
     window.addEventListener('message', (event) => {
       if (event.origin !== window.location.origin) return
       if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
-        clearInterval(checkClosed)
         try {
           popup.close()
         } catch (error) {
@@ -114,7 +103,6 @@ const performGoogleOAuth = () => {
         }
         resolve(event.data.tokens)
       } else if (event.data.type === 'GOOGLE_OAUTH_CANCELLED') {
-        clearInterval(checkClosed)
         try {
           popup.close()
         } catch (error) {
