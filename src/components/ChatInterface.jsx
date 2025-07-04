@@ -260,7 +260,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       app: service,
       connectedAt: 'just now',
       status: 'Active',
-      expiresAt: userPolicy.autoDisconnect ? 'Will auto-disconnect' : '24 hours'
+      expiresAt: getCurrentUserPolicy().autoDisconnect ? 'Will auto-disconnect' : '24 hours'
     }
     addActiveConnection(connection)
 
@@ -270,17 +270,17 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       app: service,
       connectedAt: now,
       lastActivity: now,
-      status: userPolicy.autoDisconnect ? 'inactive' : 'active',
+      status: getCurrentUserPolicy().autoDisconnect ? 'inactive' : 'active',
       // Always set contentPreview for Activity Log
       contentPreview: uploadedFile
         ? `${uploadedFile.name}: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`
         : fileContent.substring(0, 100) + (fileContent.length > 100 ? '...' : ''),
-      ...(userPolicy.autoDisconnect 
+      ...(getCurrentUserPolicy().autoDisconnect 
         ? { reason: 'auto-disconnect policy' }
         : { 
-            expiresAt: userPolicy.connectionDuration === 'persistent' 
+            expiresAt: getCurrentUserPolicy().connectionDuration === 'persistent' 
               ? 'persistent' 
-              : userPolicy.connectionDuration === '24h' 
+              : getCurrentUserPolicy().connectionDuration === '24h' 
                 ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
                 : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // Default to 24h
           }
@@ -315,7 +315,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
 
     // Step 4: Policy Enforcement
-    if (userPolicy.autoDisconnect && oauthResult.connectionId) {
+    if (getCurrentUserPolicy().autoDisconnect && oauthResult.connectionId) {
       // Remove the connection from Supabase after use
       await supabase
         .from('oauth_connections')
