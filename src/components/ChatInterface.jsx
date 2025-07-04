@@ -62,8 +62,6 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
   const messagesEndRef = useRef(null)
   const chatContainerRef = useRef(null)
 
-  const userPolicy = getCurrentUserPolicy()
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -110,15 +108,13 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
   const performGoogleOAuth = async () => {
     try {
-      // Always check the latest policy
+      // Always get the latest policy
       const userPolicy = getCurrentUserPolicy();
       if (userPolicy.autoDisconnect) {
-        // Delete any existing connection before use
         const validConnection = await getValidGoogleConnection();
         if (validConnection) {
           await supabase.from('oauth_connections').delete().eq('id', validConnection.id);
         }
-        // Always run OAuth
         const result = await authenticateWithGoogle();
         if (result.success) {
           const newConnection = await getValidGoogleConnection();
@@ -127,7 +123,6 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
           return { success: false, error: result.error || 'OAuth was cancelled' };
         }
       } else {
-        // Existing logic: reuse if valid, else OAuth
         const validConnection = await getValidGoogleConnection();
         if (validConnection) {
           return { success: true, accessToken: validConnection.access_token, connectionId: validConnection.id };
@@ -570,8 +565,8 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         {/* Policy Status */}
         <div className="mt-2 flex items-center space-x-2 text-xs text-gray-500">
           <Shield className="w-3 h-3" />
-          <span>Policy: {userPolicy.connectionDuration}</span>
-          {userPolicy.autoDisconnect && (
+          <span>Policy: {getCurrentUserPolicy().connectionDuration}</span>
+          {getCurrentUserPolicy().autoDisconnect && (
             <span className="text-gray-600">• Auto-disconnect enabled</span>
           )}
         </div>
