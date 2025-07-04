@@ -26,7 +26,8 @@ import {
   createGoogleDriveFile,
   updateGoogleDriveFile,
   isGoogleDriveUrl,
-  extractGoogleDriveFileId
+  extractGoogleDriveFileId,
+  getValidGoogleConnection
 } from '../services/googleDriveAuth'
 
 // Import configs for integration status check
@@ -109,9 +110,16 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
   const performGoogleOAuth = async () => {
     try {
+      // Check for a valid connection first
+      const validConnection = await getValidGoogleConnection()
+      if (validConnection) {
+        return { success: true, accessToken: validConnection.access_token, connectionId: validConnection.id }
+      }
       const result = await authenticateWithGoogle()
       if (result.success) {
-        return { success: true, accessToken: result.accessToken }
+        // After OAuth, fetch the new connection
+        const newConnection = await getValidGoogleConnection()
+        return { success: true, accessToken: newConnection?.access_token, connectionId: newConnection?.id }
       } else {
         return { success: false, error: result.error || 'OAuth was cancelled' }
       }
@@ -295,7 +303,12 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
 
     // Step 4: Policy Enforcement
-    if (userPolicy.autoDisconnect) {
+    if (userPolicy.autoDisconnect && oauthResult.connectionId) {
+      // Remove the connection from Supabase after use
+      await supabase
+        .from('oauth_connections')
+        .delete()
+        .eq('id', oauthResult.connectionId)
       setTimeout(() => {
         addMessage(`🔒 Connection closed for security (auto-disconnect policy)${authMethod}`, 'assistant')
         removeActiveConnection(connectionId)

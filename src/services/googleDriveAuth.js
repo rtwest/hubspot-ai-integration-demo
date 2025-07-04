@@ -279,4 +279,22 @@ export const extractGoogleDriveFileId = (url) => {
 // Check if URL is a valid Google Drive URL
 export const isGoogleDriveUrl = (url) => {
   return url.includes('drive.google.com') && extractGoogleDriveFileId(url) !== null
+}
+
+// Helper to check for a valid Google connection
+export const getValidGoogleConnection = async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data, error } = await supabase
+    .from('oauth_connections')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('provider', 'google')
+    .single()
+  if (error || !data) return null
+  // Check if token is expired
+  if (data.expires_at && new Date(data.expires_at) > new Date()) {
+    return data
+  }
+  return null
 } 
