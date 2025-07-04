@@ -7,12 +7,5 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "env": {
-    "VITE_SUPABASE_URL": "@vite_supabase_url",
-    "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key",
-    "VITE_NOTION_CLIENT_ID": "@vite_notion_client_id",
-    "VITE_GOOGLE_CLIENT_ID": "@vite_google_client_id",
-    "VITE_APP_URL": "@vite_app_url"
-  }
+  ]
 } 

@@ -15,12 +15,7 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     )
 
     const { code, redirect_uri } = await req.json()
@@ -52,68 +47,14 @@ serve(async (req) => {
 
     const tokenData = await tokenResponse.json()
 
-    // Get current user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
-    if (userError || !user) {
-      throw new Error('User not authenticated')
-    }
-
-    // Get user profile or create one
-    let { data: userProfile } = await supabaseClient
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-
-    if (!userProfile) {
-      const { error: insertError } = await supabaseClient
-        .from('users')
-        .insert({
-          id: user.id,
-          email: user.email,
-          full_name: user.user_metadata?.full_name || user.email?.split('@')[0]
-        })
-      
-      if (insertError) {
-        console.error('Error creating user profile:', insertError)
-      }
-    }
-
-    // Store OAuth connection
-    const expiresAt = new Date()
-    expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in)
-
-    const { error: connectionError } = await supabaseClient
-      .from('oauth_connections')
-      .upsert({
-        user_id: user.id,
-        provider: 'google',
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        expires_at: expiresAt.toISOString(),
-        scopes: tokenData.scope?.split(' ') || []
-      }, {
-        onConflict: 'user_id,provider'
-      })
-
-    if (connectionError) {
-      console.error('Error storing OAuth connection:', connectionError)
-      throw new Error('Failed to store connection')
-    }
-
-    // Log the activity
-    await supabaseClient.rpc('log_integration_activity', {
-      user_uuid: user.id,
-      provider_name: 'google',
-      action_name: 'oauth_connect',
-      success_status: true
-    })
-
+    // Return the tokens to the frontend for storage
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Google connected successfully',
-        expires_at: expiresAt.toISOString()
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_in: tokenData.expires_in,
+        scope: tokenData.scope
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
