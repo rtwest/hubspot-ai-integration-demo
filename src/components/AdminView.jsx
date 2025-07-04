@@ -356,11 +356,6 @@ const AdminView = () => {
                         <td className="py-4 px-4">
                           <div className="text-sm">
                             <div className="font-medium text-gray-900">{activity.duration}</div>
-                            {activity.expiresAt && activity.expiresAt !== 'persistent' && (
-                              <div className="text-xs text-gray-600">
-                                Expires: {formatFutureTime(activity.expiresAt)}
-                              </div>
-                            )}
                           </div>
                         </td>
                         <td className="py-4 px-4">
