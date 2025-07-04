@@ -43,7 +43,8 @@ const GoogleCallback = () => {
         },
         body: JSON.stringify({
           code,
-          state
+          state,
+          redirect_uri: `${import.meta.env.VITE_APP_URL || window.location.origin}/auth/google/callback`
         })
       })
 
