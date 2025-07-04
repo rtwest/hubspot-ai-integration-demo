@@ -110,18 +110,35 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
   const performGoogleOAuth = async () => {
     try {
-      // Check for a valid connection first
-      const validConnection = await getValidGoogleConnection()
-      if (validConnection) {
-        return { success: true, accessToken: validConnection.access_token, connectionId: validConnection.id }
-      }
-      const result = await authenticateWithGoogle()
-      if (result.success) {
-        // After OAuth, fetch the new connection
-        const newConnection = await getValidGoogleConnection()
-        return { success: true, accessToken: newConnection?.access_token, connectionId: newConnection?.id }
+      // Always check the latest policy
+      const userPolicy = getCurrentUserPolicy();
+      if (userPolicy.autoDisconnect) {
+        // Delete any existing connection before use
+        const validConnection = await getValidGoogleConnection();
+        if (validConnection) {
+          await supabase.from('oauth_connections').delete().eq('id', validConnection.id);
+        }
+        // Always run OAuth
+        const result = await authenticateWithGoogle();
+        if (result.success) {
+          const newConnection = await getValidGoogleConnection();
+          return { success: true, accessToken: newConnection?.access_token, connectionId: newConnection?.id };
+        } else {
+          return { success: false, error: result.error || 'OAuth was cancelled' };
+        }
       } else {
-        return { success: false, error: result.error || 'OAuth was cancelled' }
+        // Existing logic: reuse if valid, else OAuth
+        const validConnection = await getValidGoogleConnection();
+        if (validConnection) {
+          return { success: true, accessToken: validConnection.access_token, connectionId: validConnection.id };
+        }
+        const result = await authenticateWithGoogle();
+        if (result.success) {
+          const newConnection = await getValidGoogleConnection();
+          return { success: true, accessToken: newConnection?.access_token, connectionId: newConnection?.id };
+        } else {
+          return { success: false, error: result.error || 'OAuth was cancelled' };
+        }
       }
     } catch (error) {
       console.error('Google OAuth error:', error)
@@ -524,6 +541,14 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
                 rows="1"
                 disabled={isProcessing}
                 style={{ minHeight: '44px', maxHeight: '120px' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (inputValue.trim() && !isProcessing) {
+                      handleSubmit(e);
+                    }
+                  }
+                }}
               />
               <button
                 type="button"
