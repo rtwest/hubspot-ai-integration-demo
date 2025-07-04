@@ -43,12 +43,14 @@ const GoogleCallback = () => {
         type: 'GOOGLE_OAUTH_SUCCESS',
         tokens: tokens
       }, window.location.origin)
+      window.close()
     } catch (error) {
       console.error('Token exchange error:', error)
       window.opener?.postMessage({
         type: 'GOOGLE_OAUTH_CANCELLED',
         error: 'Token exchange failed'
       }, window.location.origin)
+      window.close()
     }
   }
 
