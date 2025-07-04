@@ -13,12 +13,21 @@ const GOOGLE_CONFIG = {
 // Check if real Google OAuth is configured
 export const isRealGoogleConfigured = () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-  const clientSecret = import.meta.env.VITE_GOOGLE_CLIENT_SECRET
-  // Check if both are set and not placeholder values
-  return !!(clientId && clientSecret && 
+  const isProduction = import.meta.env.PROD || window.location.hostname !== 'localhost'
+  
+  // In production, we should have a real client ID
+  if (isProduction) {
+    return !!(clientId && 
+             clientId !== 'your_google_client_id_here' && 
+             clientId !== '' &&
+             clientId !== '719127172359-g7m7b3j7p9693me659ammt42g75pl6uu.apps.googleusercontent.com')
+  }
+  
+  // In development, check if we have a real client ID (not the demo one)
+  return !!(clientId && 
            clientId !== 'your_google_client_id_here' && 
-           clientSecret !== 'your_google_client_secret_here' &&
-           clientId !== '' && clientSecret !== '')
+           clientId !== '' &&
+           clientId !== '719127172359-g7m7b3j7p9693me659ammt42g75pl6uu.apps.googleusercontent.com')
 }
 
 // Simulate Google OAuth popup
