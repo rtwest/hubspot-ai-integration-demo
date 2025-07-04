@@ -176,7 +176,7 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
     const { data: { session } } = await supabase.auth.getSession()
     const jwt = session?.access_token
 
-    const response = await fetch(getGoogleApiUrl(''), {
+    const response = await fetch(getGoogleApiUrl('/files'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -232,8 +232,8 @@ export const updateGoogleDriveFile = async (fileId, content, accessToken) => {
     const { data: { session } } = await supabase.auth.getSession()
     const jwt = session?.access_token
 
-    const response = await fetch(getGoogleApiUrl(`/${fileId}`), {
-      method: 'PUT',
+    const response = await fetch(getGoogleApiUrl(`/files/${fileId}`), {
+      method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
         ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
