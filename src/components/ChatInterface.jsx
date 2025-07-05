@@ -66,7 +66,19 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const messagesEndRef = useRef(null)
   const chatContainerRef = useRef(null)
-  const [policyInfo, setPolicyInfo] = useState({ connectionDuration: '', autoDisconnect: false })
+  const [policyInfo, setPolicyInfo] = useState({ connectionDuration: '24h', autoDisconnect: false })
+  const [lastPolicyCheck, setLastPolicyCheck] = useState(0)
+  const POLICY_CHECK_THROTTLE = 1000 // Only check policy once per second
+
+  // Throttled policy check to reduce redundant calls
+  const throttledPolicyCheck = async (userGroup) => {
+    const now = Date.now()
+    if (now - lastPolicyCheck < POLICY_CHECK_THROTTLE) {
+      return null // Return cached result if within throttle window
+    }
+    setLastPolicyCheck(now)
+    return await fetchLatestUserPolicy(userGroup)
+  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -162,7 +174,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
   }
 
-  const transferContentToNotion = async (content, targetUrl = null) => {
+  const transferContentToNotion = async (content, targetUrl = null, isReauthAttempt = false) => {
     try {
       // Default parent page ID for mentions (your Seamless Integration Demo page)
       const defaultParentPageId = '224cd3375162804c881bee78377d53ce'
@@ -173,11 +185,11 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         console.log('Extracted parent page ID from URL:', parentPageId)
         
         // Create new page under the parent page
-        return await createNotionPage(content, parentPageId)
+        return await createNotionPage(content, parentPageId, isReauthAttempt)
       } else {
         // For mentions, use the default parent page
         console.log('Using default parent page for mention:', defaultParentPageId)
-        return await createNotionPage(content, defaultParentPageId)
+        return await createNotionPage(content, defaultParentPageId, isReauthAttempt)
       }
     } catch (error) {
       console.error('Content transfer error:', error)
@@ -286,7 +298,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
     // Fetch the latest policy before integration
     console.log('[DEBUG] About to call fetchLatestUserPolicy with:', currentUserGroup)
-    const latestPolicy = await fetchLatestUserPolicy(currentUserGroup)
+    const latestPolicy = await throttledPolicyCheck(currentUserGroup)
 
     // Step 1: OAuth Flow
     let oauthResult
@@ -326,8 +338,29 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     try {
       if (service === 'notion') {
         console.log('[DEBUG] About to call transferContentToNotion')
-        transferResult = await transferContentToNotion(fileContent, targetUrl)
+        transferResult = await transferContentToNotion(fileContent, targetUrl, false)
         console.log('[DEBUG] transferContentToNotion result:', transferResult)
+        // If auto-disconnect policy enforced and must re-authenticate, force a fresh auth flow and retry ONCE
+        if (!transferResult.success && transferResult.error && transferResult.error.includes('must re-authenticate')) {
+          addMessage('Admin policy requires re-authentication. Please re-authenticate to continue.', 'assistant');
+          // Force a fresh auth flow (do not reuse any stored connection)
+          const reauthResult = await performNotionAuth({ forceFresh: true })
+          if (reauthResult.success) {
+            addMessage('Re-authentication successful. Retrying content transfer...', 'assistant');
+            // Use the new auth for the retry, and set isReauthAttempt flag
+            transferResult = await transferContentToNotion(fileContent, targetUrl, true)
+            console.log('[DEBUG] transferContentToNotion result after re-auth:', transferResult)
+            if (!transferResult.success && transferResult.error && transferResult.error.includes('must re-authenticate')) {
+              addMessage('Re-authentication failed. Please try again or contact support.', 'assistant');
+              setIsProcessing(false)
+              return
+            }
+          } else {
+            addMessage('Failed to re-authenticate with Notion. Please try again.', 'assistant');
+            setIsProcessing(false)
+            return
+          }
+        }
       } else if (service === 'google-drive') {
         console.log('[DEBUG] About to call transferContentToGoogleDrive')
         transferResult = await transferContentToGoogleDrive(fileContent, targetUrl, oauthResult.accessToken, false)

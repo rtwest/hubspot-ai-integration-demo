@@ -51,7 +51,7 @@ serve(async (req) => {
 
   try {
     // Always parse the body first
-    const { action, content, target_url, parent_page_id, api_key } = await req.json()
+    const { action, content, target_url, parent_page_id, api_key, isReauthAttempt } = await req.json()
     
     // If no API key in body, require Authorization header
     if (!api_key) {
@@ -88,12 +88,16 @@ serve(async (req) => {
     }
     // ENFORCE POLICY: Fetch latest policy and reject if autoDisconnect is true
     const userPolicy = await fetchLatestUserPolicy(supabaseClient, user.id, 'notion');
-    if (userPolicy.autoDisconnect) {
+    console.log('[DEBUG] Backend received isReauthAttempt:', isReauthAttempt, 'from request body');
+    console.log('[DEBUG] Backend policy check - autoDisconnect:', userPolicy.autoDisconnect, 'isReauthAttempt:', isReauthAttempt);
+    if (userPolicy.autoDisconnect && !isReauthAttempt) {
+      console.log('[DEBUG] Backend blocking request due to auto-disconnect policy');
       return new Response(
         JSON.stringify({ success: false, error: 'Auto-disconnect policy enforced: must re-authenticate.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
       );
     }
+    console.log('[DEBUG] Backend allowing request - policy check passed');
 
     let notionResponse
     let success = false
