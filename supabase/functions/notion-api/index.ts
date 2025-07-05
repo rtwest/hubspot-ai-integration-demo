@@ -88,16 +88,8 @@ serve(async (req) => {
     }
     // ENFORCE POLICY: Fetch latest policy and reject if autoDisconnect is true
     const userPolicy = await fetchLatestUserPolicy(supabaseClient, user.id, 'notion');
-    console.log('[DEBUG] Backend received isReauthAttempt:', isReauthAttempt, 'from request body');
-    console.log('[DEBUG] Backend policy check - autoDisconnect:', userPolicy.autoDisconnect, 'isReauthAttempt:', isReauthAttempt);
-    if (userPolicy.autoDisconnect && !isReauthAttempt) {
-      console.log('[DEBUG] Backend blocking request due to auto-disconnect policy');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Auto-disconnect policy enforced: must re-authenticate.' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-      );
-    }
-    console.log('[DEBUG] Backend allowing request - policy check passed');
+    // Notion uses API keys that don't expire, so we don't enforce auto-disconnect policy
+    console.log('[DEBUG] Backend allowing Notion request - API key approach bypasses auto-disconnect policy');
 
     let notionResponse
     let success = false

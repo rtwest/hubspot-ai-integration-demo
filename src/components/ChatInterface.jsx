@@ -157,7 +157,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
   }
 
-  const transferContentToNotion = async (content, targetUrl = null, isReauthAttempt = false) => {
+  const transferContentToNotion = async (content, targetUrl = null) => {
     try {
       // Default parent page ID for mentions (your Seamless Integration Demo page)
       const defaultParentPageId = '224cd3375162804c881bee78377d53ce'
@@ -168,11 +168,11 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         console.log('Extracted parent page ID from URL:', parentPageId)
         
         // Create new page under the parent page
-        return await createNotionPage(content, parentPageId, isReauthAttempt)
+        return await createNotionPage(content, parentPageId)
       } else {
         // For mentions, use the default parent page
         console.log('Using default parent page for mention:', defaultParentPageId)
-        return await createNotionPage(content, defaultParentPageId, isReauthAttempt)
+        return await createNotionPage(content, defaultParentPageId)
       }
     } catch (error) {
       console.error('Content transfer error:', error)
@@ -321,7 +321,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     try {
       if (service === 'notion') {
         console.log('[DEBUG] About to call transferContentToNotion')
-        transferResult = await transferContentToNotion(fileContent, targetUrl, false)
+        transferResult = await transferContentToNotion(fileContent, targetUrl)
         console.log('[DEBUG] transferContentToNotion result:', transferResult)
       } else if (service === 'google-drive') {
         console.log('[DEBUG] About to call transferContentToGoogleDrive')

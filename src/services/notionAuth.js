@@ -62,8 +62,8 @@ export const authenticateNotion = () => {
 }
 
 // Notion API Functions
-export async function createNotionPage(content, parentPageId, isReauthAttempt = false) {
-  return await callNotionApiWithPolicy('create_page', { content, parent_page_id: parentPageId }, isReauthAttempt);
+export async function createNotionPage(content, parentPageId) {
+  return await callNotionApiWithPolicy('create_page', { content, parent_page_id: parentPageId });
 }
 
 export async function updateNotionPage(pageId, content) {
@@ -121,7 +121,7 @@ const NOTION_API_URL = import.meta.env.PROD
   : '/api/notion';
 
 // Example for a Notion API call (repeat for all Notion API fetches):
-export async function callNotionApiWithPolicy(action, body, isReauthAttempt = false) {
+export async function callNotionApiWithPolicy(action, body) {
   const { data: { session } } = await supabase.auth.getSession();
   const jwt = session?.access_token;
   const response = await fetch(NOTION_API_URL, {
@@ -130,7 +130,7 @@ export async function callNotionApiWithPolicy(action, body, isReauthAttempt = fa
       'Content-Type': 'application/json',
       ...(jwt ? { 'Authorization': `Bearer ${jwt}` } : {})
     },
-    body: JSON.stringify({ ...body, action, isReauthAttempt })
+    body: JSON.stringify({ ...body, action })
   });
   if (response.status === 403) {
     throw new Error('Re-authentication required by admin policy. Please reconnect to Notion.');
