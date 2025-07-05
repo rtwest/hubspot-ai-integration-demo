@@ -100,26 +100,9 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
   const performNotionAuth = async (latestPolicy) => {
     try {
-      if (latestPolicy.autoDisconnect) {
-        // Always force fresh authentication, never reuse token
-        const result = await authenticateNotion();
-        // Store token for demo/local only
-        const token = 'authenticated';
-        storeNotionToken('gabby', token);
-        return { success: true, accessToken: token };
-      } else {
-        // Check if we already have a valid token (for demo/local only)
-        const existingToken = getNotionToken('gabby');
-        if (existingToken && await isTokenValid()) {
-          return { success: true, accessToken: existingToken };
-        }
-        // Authenticate with Notion
-        const result = await authenticateNotion();
-        // Store token for future use
-        const token = 'authenticated';
-        storeNotionToken('gabby', token);
-        return { success: true, accessToken: token };
-      }
+      // Notion uses API keys, so authentication is always successful if configured
+      const result = await authenticateNotion();
+      return { success: true, accessToken: 'api_key_authenticated' };
     } catch (error) {
       console.error('Notion auth error:', error);
       return { success: false, error: error.message };
@@ -340,27 +323,6 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         console.log('[DEBUG] About to call transferContentToNotion')
         transferResult = await transferContentToNotion(fileContent, targetUrl, false)
         console.log('[DEBUG] transferContentToNotion result:', transferResult)
-        // If auto-disconnect policy enforced and must re-authenticate, force a fresh auth flow and retry ONCE
-        if (!transferResult.success && transferResult.error && transferResult.error.includes('must re-authenticate')) {
-          addMessage('Admin policy requires re-authentication. Please re-authenticate to continue.', 'assistant');
-          // Force a fresh auth flow (do not reuse any stored connection)
-          const reauthResult = await performNotionAuth({ forceFresh: true })
-          if (reauthResult.success) {
-            addMessage('Re-authentication successful. Retrying content transfer...', 'assistant');
-            // Use the new auth for the retry, and set isReauthAttempt flag
-            transferResult = await transferContentToNotion(fileContent, targetUrl, true)
-            console.log('[DEBUG] transferContentToNotion result after re-auth:', transferResult)
-            if (!transferResult.success && transferResult.error && transferResult.error.includes('must re-authenticate')) {
-              addMessage('Re-authentication failed. Please try again or contact support.', 'assistant');
-              setIsProcessing(false)
-              return
-            }
-          } else {
-            addMessage('Failed to re-authenticate with Notion. Please try again.', 'assistant');
-            setIsProcessing(false)
-            return
-          }
-        }
       } else if (service === 'google-drive') {
         console.log('[DEBUG] About to call transferContentToGoogleDrive')
         transferResult = await transferContentToGoogleDrive(fileContent, targetUrl, oauthResult.accessToken, false)
