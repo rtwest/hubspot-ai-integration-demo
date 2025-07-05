@@ -3,7 +3,7 @@ import { Plus, MessageSquare, FileText, Download, Share2 } from 'lucide-react';
 import ChatInterface from './ChatInterface.jsx';
 import DemoPageViewer from './DemoPageViewer.jsx';
 
-const EndUserView = () => {
+const EndUserView = ({ showChat = true }) => {
   const [showDemoViewer, setShowDemoViewer] = useState(false);
   const [currentFile, setCurrentFile] = useState({
     name: 'Campaign Report Q4 2024.txt',
@@ -49,7 +49,7 @@ Date: January 15, 2025`,
       {/* Main Content Area */}
       <div className="flex-1 flex">
         {/* File Display Panel - Left Side */}
-        <div className="w-1/2 p-6">
+        <div className={`${showChat ? 'w-1/2' : 'w-full'} p-6 transition-all duration-300`}>
           <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
             {/* File Header */}
             <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
@@ -97,41 +97,43 @@ Date: January 15, 2025`,
         </div>
 
         {/* Chat Panel - Right Side */}
-        <div className="w-1/2 p-6">
-          <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            {/* Chat Panel Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                    <MessageSquare className="text-white" size={20} />
+        {showChat && (
+          <div className="w-1/2 p-6">
+            <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              {/* Chat Panel Header */}
+              <div className="bg-white border-b border-gray-200 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                      <MessageSquare className="text-white" size={20} />
+                    </div>
+                    <div>
+                      <h1 className="text-lg font-semibold text-gray-900">AI Assistant</h1>
+                      <p className="text-sm text-gray-500">Ready to help with integrations</p>
+                    </div>
                   </div>
-                  <div>
-                    <h1 className="text-lg font-semibold text-gray-900">AI Assistant</h1>
-                    <p className="text-sm text-gray-500">Ready to help with integrations</p>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Gabby</span> • <span className="text-blue-600">Sales Team</span>
+                    </div>
+                    <button className="text-sm text-gray-600 hover:text-gray-900">
+                      All Chats
+                    </button>
+                    <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                      <Plus size={20} />
+                    </button>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-3">
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">Gabby</span> • <span className="text-blue-600">Sales Team</span>
-                  </div>
-                  <button className="text-sm text-gray-600 hover:text-gray-900">
-                    All Chats
-                  </button>
-                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                    <Plus size={20} />
-                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Chat Interface */}
-            <div className="flex-1">
-              <ChatInterface uploadedFile={currentFile} fileContent={currentFile.content} />
+              {/* Chat Interface */}
+              <div className="flex-1">
+                <ChatInterface uploadedFile={currentFile} fileContent={currentFile.content} />
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Demo Page Viewer Button */}

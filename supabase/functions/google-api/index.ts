@@ -4,6 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
 }
 
 // Simulate fetching the latest user policy (replace with real DB/API call in production)
@@ -55,66 +56,93 @@ serve(async (req) => {
       throw new Error('User not authenticated')
     }
 
-    // Get user's Google OAuth connection
-    const { data: connection, error: connectionError } = await supabaseClient
-      .from('oauth_connections')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('provider', 'google')
-      .single()
-
-    if (connectionError || !connection) {
-      throw new Error('Google OAuth connection not found')
+    let isReauthAttempt = false;
+    // Parse request body to get access token if provided
+    let requestBody = null;
+    let accessTokenFromRequest = null;
+    if (req.method === 'POST' || req.method === 'PATCH') {
+      try {
+        requestBody = await req.json();
+        accessTokenFromRequest = requestBody?.accessToken;
+        isReauthAttempt = !!requestBody?.isReauthAttempt;
+        console.log('[DEBUG] Backend received isReauthAttempt:', isReauthAttempt, 'from request body:', requestBody);
+      } catch (e) {
+        // Request body might not be JSON or might be empty
+      }
     }
 
-    // ENFORCE POLICY: Fetch latest policy and reject if autoDisconnect is true
+    // Always fetch and check the latest policy for the user/role/provider
     const userPolicy = await fetchLatestUserPolicy(supabaseClient, user.id, 'google');
-    if (userPolicy.autoDisconnect) {
+    console.log('[DEBUG] Backend policy check - autoDisconnect:', userPolicy.autoDisconnect, 'isReauthAttempt:', isReauthAttempt);
+    if (userPolicy.autoDisconnect && !isReauthAttempt) {
+      console.log('[DEBUG] Backend blocking request due to auto-disconnect policy');
       return new Response(
         JSON.stringify({ success: false, error: 'Auto-disconnect policy enforced: must re-authenticate.' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
       );
     }
+    console.log('[DEBUG] Backend allowing request - policy check passed');
 
-    // Check if token is expired and refresh if needed
-    let accessToken = connection.access_token
-    if (new Date(connection.expires_at) <= new Date()) {
-      if (!connection.refresh_token) {
-        throw new Error('Token expired and no refresh token available')
-      }
+    // Declare accessToken variable
+    let accessToken: string;
 
-      const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({
-          client_id: Deno.env.get('GOOGLE_CLIENT_ID') || '',
-          client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
-          refresh_token: connection.refresh_token,
-          grant_type: 'refresh_token'
-        })
-      })
-
-      if (!refreshResponse.ok) {
-        throw new Error('Failed to refresh token')
-      }
-
-      const refreshData = await refreshResponse.json()
-      accessToken = refreshData.access_token
-
-      // Update the connection with new token
-      const expiresAt = new Date()
-      expiresAt.setSeconds(expiresAt.getSeconds() + refreshData.expires_in)
-
-      await supabaseClient
+    // If access token is provided in request, use it directly (for re-authentication)
+    if (accessTokenFromRequest) {
+      // Use the provided access token directly
+      accessToken = accessTokenFromRequest;
+    } else {
+      // Get user's Google OAuth connection from database
+      const { data: connection, error: connectionError } = await supabaseClient
         .from('oauth_connections')
-        .update({
-          access_token: accessToken,
-          expires_at: expiresAt.toISOString()
-        })
+        .select('*')
         .eq('user_id', user.id)
         .eq('provider', 'google')
+        .single()
+
+      if (connectionError || !connection) {
+        throw new Error('Google OAuth connection not found')
+      }
+
+      // Check if token is expired and refresh if needed
+      accessToken = connection.access_token
+      if (new Date(connection.expires_at) <= new Date()) {
+        if (!connection.refresh_token) {
+          throw new Error('Token expired and no refresh token available')
+        }
+
+        const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            client_id: Deno.env.get('GOOGLE_CLIENT_ID') || '',
+            client_secret: Deno.env.get('GOOGLE_CLIENT_SECRET') || '',
+            refresh_token: connection.refresh_token,
+            grant_type: 'refresh_token'
+          })
+        })
+
+        if (!refreshResponse.ok) {
+          throw new Error('Failed to refresh token')
+        }
+
+        const refreshData = await refreshResponse.json()
+        accessToken = refreshData.access_token
+
+        // Update the connection with new token
+        const expiresAt = new Date()
+        expiresAt.setSeconds(expiresAt.getSeconds() + refreshData.expires_in)
+
+        await supabaseClient
+          .from('oauth_connections')
+          .update({
+            access_token: accessToken,
+            expires_at: expiresAt.toISOString()
+          })
+          .eq('user_id', user.id)
+          .eq('provider', 'google')
+      }
     }
 
     const url = new URL(req.url)
@@ -122,7 +150,7 @@ serve(async (req) => {
 
     if (req.method === 'POST' && path.endsWith('/files')) {
       // Create a new file
-      const { fileName, content, parentFolderId } = await req.json()
+      const { fileName, content, parentFolderId } = requestBody as any || {}
 
       const fileMetadata = {
         name: fileName,
@@ -184,7 +212,7 @@ ${content}
     } else if (req.method === 'PATCH' && path.includes('/files/')) {
       // Update an existing file
       const fileId = path.split('/files/')[1]
-      const { content } = await req.json()
+      const { content } = requestBody as any || {}
 
       const updateResponse = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
         method: 'PATCH',

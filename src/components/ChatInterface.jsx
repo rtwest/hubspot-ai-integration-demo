@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { usePolicy, fetchLatestUserPolicy } from '../context/PolicyContext'
+import { usePolicy } from '../context/PolicyContext'
 import { getAppIcon } from './AppIcons'
 import { 
   Send, 
@@ -40,18 +40,6 @@ const GOOGLE_CONFIG = {
   clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your_google_client_id_here'
 }
 
-// Helper to fetch policy from Supabase
-async function fetchSupabasePolicy(role, provider) {
-  const { data, error } = await supabase
-    .from('connection_policies')
-    .select('connection_duration_hours, auto_disconnect, allowed')
-    .eq('role', role)
-    .eq('provider', provider)
-    .single();
-  if (error || !data) return null;
-  return data;
-}
-
 const ChatInterface = ({ uploadedFile, fileContent }) => {
   const { 
     getCurrentUserPolicy, 
@@ -59,8 +47,11 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     addActiveConnection,
     removeActiveConnection,
     addUserIntegration,
-    currentUserGroup
+    currentUserGroup,
+    fetchLatestUserPolicy
   } = usePolicy()
+  console.log('[DEBUG] usePolicy context:', usePolicy())
+  console.log('[DEBUG] fetchLatestUserPolicy:', fetchLatestUserPolicy, typeof fetchLatestUserPolicy)
   
   const [messages, setMessages] = useState([
     {
@@ -75,14 +66,11 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const messagesEndRef = useRef(null)
   const chatContainerRef = useRef(null)
+  const [policyInfo, setPolicyInfo] = useState({ connectionDuration: '', autoDisconnect: false })
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
 
   const addMessage = (content, type = 'user') => {
     const newMessage = {
@@ -128,8 +116,24 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
   const performGoogleOAuth = async (latestPolicy) => {
     try {
-      if (latestPolicy.autoDisconnect) {
+      // Check if this is a force fresh request (for re-authentication)
+      const forceFresh = latestPolicy && typeof latestPolicy === 'object' && latestPolicy.forceFresh;
+      
+      if (forceFresh || (latestPolicy && latestPolicy.autoDisconnect)) {
         // Always force fresh OAuth, never reuse any connection
+        console.log('[DEBUG] Force fresh OAuth requested');
+        
+        // Clear any existing Google connections for this user
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('oauth_connections')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('provider', 'google');
+          console.log('[DEBUG] Cleared existing Google connections');
+        }
+        
         const result = await authenticateWithGoogle();
         if (result.success) {
           // Get the new connection (if needed for access token)
@@ -181,7 +185,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
   }
 
-  const transferContentToGoogleDrive = async (content, targetUrl = null, accessToken) => {
+  const transferContentToGoogleDrive = async (content, targetUrl = null, accessToken, isReauthAttempt = false) => {
     try {
       if (targetUrl) {
         const fileId = extractGoogleDriveFileId(targetUrl)
@@ -193,7 +197,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         if (targetUrl.includes('/folders/')) {
           // Create new file inside the folder
           const fileName = uploadedFile ? uploadedFile.name : 'Content from HubSpot AI Integration'
-          return await createGoogleDriveFile(content, fileName, accessToken, fileId)
+          return await createGoogleDriveFile(content, fileName, accessToken, fileId, isReauthAttempt)
         } else {
           // Update existing file
           return await updateGoogleDriveFile(fileId, content, accessToken)
@@ -201,7 +205,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       } else {
         // Create new file
         const fileName = uploadedFile ? uploadedFile.name : 'Content from HubSpot AI Integration'
-        return await createGoogleDriveFile(content, fileName, accessToken)
+        return await createGoogleDriveFile(content, fileName, accessToken, null, isReauthAttempt)
       }
     } catch (error) {
       console.error('Google Drive content transfer error:', error)
@@ -209,29 +213,71 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
   }
 
-  const handleIntegration = async (service, targetUrl = null) => {
-    if (!fileContent) {
-      addMessage(`Please select a file first to share to ${service}.`, 'assistant')
-      return
-    }
-
-    // Fetch Gabby's role from Supabase
+  // Always fetch the user's role and policy from the database
+  const fetchUserPolicy = async (service) => {
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
     const { data: userProfile } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
     const role = userProfile?.role || 'sales';
-    // Fetch latest policy for this role and provider
     const provider = service === 'google-drive' ? 'google' : service;
-    const policy = await fetchSupabasePolicy(role, provider);
+    const { data: policy } = await supabase
+      .from('connection_policies')
+      .select('connection_duration_hours, auto_disconnect, allowed')
+      .eq('role', role)
+      .eq('provider', provider)
+      .single();
+    return { role, provider, ...policy };
+  };
+
+  // Fetch and display the current policy for the badge
+  useEffect(() => {
+    (async () => {
+      const policy = await fetchUserPolicy('google-drive'); // Default to google-drive for badge
+      if (policy) {
+        setPolicyInfo({
+          connectionDuration: policy.connection_duration_hours === 8760 ? 'persistent' : policy.connection_duration_hours === 24 ? '24h' : policy.connection_duration_hours === 0 ? 'auto-disconnect' : `${policy.connection_duration_hours}h`,
+          autoDisconnect: policy.auto_disconnect
+        });
+      }
+    })();
+  }, []);
+
+  const handleIntegration = async (service, targetUrl = null) => {
+    if (!fileContent) {
+      addMessage(`Please select a file first to share to ${service}.`, 'assistant')
+      return
+    }
+
+    // Always fetch the user's role and policy from the database
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      addMessage('User not authenticated.', 'assistant');
+      return;
+    }
+    const { data: userProfile } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    const role = userProfile?.role || 'sales';
+    const provider = service === 'google-drive' ? 'google' : service;
+    const { data: policy } = await supabase
+      .from('connection_policies')
+      .select('connection_duration_hours, auto_disconnect, allowed')
+      .eq('role', role)
+      .eq('provider', provider)
+      .single();
+    console.log('User ID:', user.id, 'Role:', role, 'Provider:', provider, 'Policy:', policy);
     if (!policy || !policy.allowed) {
       addMessage(`${service} integration is not allowed for your user group (per Supabase policy).`, 'assistant');
       return;
     }
 
-    if (!isAppAllowed(service)) {
+    if (!(await isAppAllowed(service))) {
       addMessage(`${service} integration is not allowed for your user group.`, 'assistant')
       return
     }
@@ -239,6 +285,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     setIsProcessing(true)
 
     // Fetch the latest policy before integration
+    console.log('[DEBUG] About to call fetchLatestUserPolicy with:', currentUserGroup)
     const latestPolicy = await fetchLatestUserPolicy(currentUserGroup)
 
     // Step 1: OAuth Flow
@@ -252,7 +299,9 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       } else {
         addMessage('Connecting to Notion... (API Key)', 'assistant')
       }
+      console.log('[DEBUG] About to call performNotionAuth')
       oauthResult = await performNotionAuth(latestPolicy)
+      console.log('[DEBUG] performNotionAuth result:', oauthResult)
     } else if (service === 'google-drive') {
       isRealIntegration = GOOGLE_CONFIG.clientId !== 'your_google_client_id_here'
       if (!isRealIntegration) {
@@ -260,7 +309,9 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       } else {
         addMessage('Connecting to Google Drive... (OAuth)', 'assistant')
       }
+      console.log('[DEBUG] About to call performGoogleOAuth')
       oauthResult = await performGoogleOAuth(latestPolicy)
+      console.log('[DEBUG] performGoogleOAuth result:', oauthResult)
     }
     
     if (!oauthResult.success) {
@@ -274,13 +325,38 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     let transferResult
     try {
       if (service === 'notion') {
+        console.log('[DEBUG] About to call transferContentToNotion')
         transferResult = await transferContentToNotion(fileContent, targetUrl)
+        console.log('[DEBUG] transferContentToNotion result:', transferResult)
       } else if (service === 'google-drive') {
-        transferResult = await transferContentToGoogleDrive(fileContent, targetUrl, oauthResult.accessToken)
+        console.log('[DEBUG] About to call transferContentToGoogleDrive')
+        transferResult = await transferContentToGoogleDrive(fileContent, targetUrl, oauthResult.accessToken, false)
+        console.log('[DEBUG] transferContentToGoogleDrive result:', transferResult)
+        // If auto-disconnect policy enforced and must re-authenticate, force a fresh OAuth flow and retry ONCE
+        if (!transferResult.success && transferResult.error && transferResult.error.includes('must re-authenticate')) {
+          addMessage('Admin policy requires re-authentication. Please re-authenticate to continue.', 'assistant');
+          // Force a fresh OAuth flow (do not reuse any stored connection)
+          const reauthResult = await performGoogleOAuth({ forceFresh: true })
+          if (reauthResult.success) {
+            addMessage('Re-authentication successful. Retrying content transfer...', 'assistant');
+            // Use the new token for the retry, and set isReauthAttempt flag
+            transferResult = await transferContentToGoogleDrive(fileContent, targetUrl, reauthResult.accessToken, true)
+            console.log('[DEBUG] transferContentToGoogleDrive result after re-auth:', transferResult)
+            if (!transferResult.success && transferResult.error && transferResult.error.includes('must re-authenticate')) {
+              addMessage('Re-authentication failed. Please try again or contact support.', 'assistant');
+              setIsProcessing(false)
+              return
+            }
+          } else {
+            addMessage('Failed to re-authenticate with Google. Please try again.', 'assistant');
+            setIsProcessing(false)
+            return
+          }
+        }
       }
     } catch (error) {
       if (error.message && error.message.includes('Re-authentication required')) {
-        addMessage(`🔒 ${error.message}`, 'assistant');
+        addMessage(`${error.message}`, 'assistant');
       } else {
         addMessage(`Failed to send content to ${service}. Please try again.`, 'assistant');
       }
@@ -299,14 +375,14 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     const now = new Date().toISOString();
 
     // Only add to active connections and user integration history if NOT autoDisconnect
-    if (!latestPolicy.autoDisconnect) {
+    if (!latestPolicy.auto_disconnect) {
       const connection = {
         id: connectionId,
         user: 'Demo User',
         app: service,
         connectedAt: 'just now',
         status: 'Active',
-        expiresAt: latestPolicy.connectionDuration === 'persistent' ? 'persistent' : '24 hours'
+        expiresAt: latestPolicy.connection_duration_hours === 8760 ? 'persistent' : '24 hours'
       };
       addActiveConnection(connection);
 
@@ -319,11 +395,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         contentPreview: uploadedFile
           ? `${uploadedFile.name}: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`
           : fileContent.substring(0, 100) + (fileContent.length > 100 ? '...' : ''),
-        expiresAt: latestPolicy.connectionDuration === 'persistent'
-          ? 'persistent'
-          : latestPolicy.connectionDuration === '24h'
-            ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-            : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        expiresAt: latestPolicy.connection_duration_hours === 8760 ? 'persistent' : '24 hours'
       };
       addUserIntegration('gabby', userIntegration);
     }
@@ -335,33 +407,34 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     
     if (targetUrl) {
       if (service === 'notion') {
-        addMessage(`✅ Content successfully created as a new page under your Notion page!${authMethod}\n\n📄 Parent page: ${targetUrl}\n📄 New page: ${transferResult.pageUrl}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
+        addMessage(`Content successfully created as a new page under your Notion page!${authMethod}\n\nParent page: ${targetUrl}\nNew page: ${transferResult.pageUrl}\nContent: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
       } else if (service === 'google-drive') {
         if (targetUrl.includes('/folders/')) {
-          addMessage(`✅ Content successfully saved to your Google Drive folder!${authMethod}\n\n📁 Folder: ${targetUrl}\n📄 New file: ${transferResult.webViewLink}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
+          addMessage(`Content successfully saved to your Google Drive folder!${authMethod}\n\nFolder: ${targetUrl}\nNew file: ${transferResult.webViewLink}\nContent: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
         } else {
-          addMessage(`✅ Content successfully added to your Google Drive file!${authMethod}\n\n📄 File: ${transferResult.webViewLink || targetUrl}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
+          addMessage(`Content successfully added to your Google Drive file!${authMethod}\n\nFile: ${transferResult.webViewLink || targetUrl}\nContent: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
         }
       }
     } else {
+      // No target URL - create new content
       if (service === 'notion') {
-        addMessage(`✅ Content successfully sent to Notion!${authMethod}\n\n📄 New page created under your demo page: ${transferResult.pageUrl}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
+        addMessage(`Content successfully sent to Notion!${authMethod}\n\nNew page created under your demo page: ${transferResult.pageUrl}\nContent: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
       } else if (service === 'google-drive') {
         const folderInfo = targetUrl ? '' : '\n📁 Saved to default HubSpot AI Integration folder'
-        addMessage(`✅ Content successfully saved to Google Drive!${authMethod}${folderInfo}\n\n📄 New file created: ${transferResult.webViewLink}\n📝 Content: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
+        addMessage(`Content successfully saved to Google Drive!${authMethod}${folderInfo}\n\nNew file created: ${transferResult.webViewLink}\nContent: ${fileContent.substring(0, 100)}${fileContent.length > 100 ? '...' : ''}`, 'assistant')
       }
     }
 
     // Step 4: Policy Enforcement
-    if (latestPolicy.autoDisconnect) {
+    if (latestPolicy.auto_disconnect) {
       setTimeout(() => {
-        addMessage(`🔒 Connection closed for security (auto-disconnect policy)${authMethod}`, 'assistant');
+        addMessage(`Connection disconnected per Admin policy${authMethod}`, 'assistant');
       }, 300);
     } else {
       addMessage(
-        latestPolicy.connectionDuration === 'persistent'
-          ? `🔗 Connection is persistent per policy${authMethod}`
-          : `🔗 Connection active for 24 hours per policy${authMethod}`,
+        latestPolicy.connection_duration_hours === 0
+          ? `Connection is persistent per policy${authMethod}`
+          : `Connection active for 24 hours per policy${authMethod}`,
         'assistant'
       );
     }
@@ -415,8 +488,10 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
   const handleDrop = (e) => {
     e.preventDefault()
     setIsDragOver(false)
-    // Reset cursor back to normal
+    // Reset cursor
     e.currentTarget.style.cursor = 'default'
+    // Remove drag-over class
+    e.currentTarget.classList.remove('drag-over')
     
     console.log('Drop event triggered')
     const url = e.dataTransfer.getData('text/plain')
@@ -451,16 +526,20 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     setIsDragOver(true)
     // Change cursor to electrical plug
     e.dataTransfer.dropEffect = 'copy'
-    // Set custom cursor for electric plug
-    e.currentTarget.style.cursor = 'url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJMMTMgMkwyMCA5TDEzIDE2TDEyIDE2TDUgOUwxMiAyWiIgZmlsbD0iIzAwNzNGQyIvPgo8cGF0aCBkPSJNMTIgMjJMMTMgMjJMMjAgMTVMMTMgOEwxMiA4TDUgMTVMMTIgMjJaIiBmaWxsPSIjMDA3M0ZDIi8+CjxwYXRoIGQ9Ik0xMiAxMkwxMyAxMkwxMyAxNkwxMiAxNkwxMiAxMloiIGZpbGw9IiMwMDczRkMiLz4KPC9zdmc+"), auto'
+    // Set cursor to pointer for visual feedback
+    e.currentTarget.style.cursor = 'pointer'
+    // Add drag-over class for visual indicator
+    e.currentTarget.classList.add('drag-over')
   }
 
   const handleDragLeave = (e) => {
     e.preventDefault()
     console.log('Drag leave event triggered')
     setIsDragOver(false)
-    // Reset cursor back to normal
+    // Reset cursor
     e.currentTarget.style.cursor = 'default'
+    // Remove drag-over class
+    e.currentTarget.classList.remove('drag-over')
   }
 
   const getMessageIcon = (type) => {
@@ -484,7 +563,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       <div 
         ref={chatContainerRef}
         className={`flex-1 overflow-y-auto p-4 space-y-4 transition-all duration-200 ${
-          isDragOver ? 'bg-blue-50 border-2 border-dashed border-blue-300' : ''
+          isDragOver ? 'bg-gray-50 border-2 border-dashed border-gray-200' : ''
         }`}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -492,6 +571,10 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         onDragEnter={(e) => {
           e.preventDefault();
           console.log('Drag enter detected');
+          // Set cursor to pointer for visual feedback
+          e.currentTarget.style.cursor = 'pointer'
+          // Add drag-over class for visual indicator
+          e.currentTarget.classList.add('drag-over')
         }}
         style={{
           minHeight: '300px' // Ensure minimum height for drop area
@@ -499,13 +582,13 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       >
         {isDragOver && (
           <div className="text-center py-8">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <svg className="w-6 h-6 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
             </div>
-            <p className="text-blue-900 font-medium text-lg">Drop to Connect!</p>
-            <p className="text-blue-700 text-sm mt-1">Drop a Notion or Google Drive URL to share content</p>
+            <p className="text-gray-900 font-medium text-lg">Drop to Connect!</p>
+            <p className="text-gray-600 text-sm mt-1">Drop a Notion or Google Drive URL to share content</p>
           </div>
         )}
         
@@ -516,7 +599,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
             </div>
-            <p className="text-gray-600 font-medium">Drop Zone Active</p>
+            <p className="text-gray-600 font-normal">Drop Zone Active</p>
             <p className="text-gray-500 text-sm mt-1">Drag a Notion or Google Drive URL here to test</p>
           </div>
         )}
@@ -530,14 +613,14 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
           >
             {message.type === 'assistant' && getMessageIcon('assistant')}
             <div
-              className={`max-w-xs lg:max-w-lg xl:max-w-xl px-3 py-2 rounded-lg ${
+              className={`max-w-xs lg:max-w-lg xl:max-w-xl px-4 py-3 rounded-lg ${
                 message.type === 'user'
-                  ? 'bg-black text-white'
-                  : 'bg-gray-100 text-gray-900'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-50 text-gray-900'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-              <p className="text-xs opacity-70 mt-1">
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              <p className="text-xs opacity-60 mt-2">
                 {message.timestamp.toLocaleTimeString()}
               </p>
             </div>
@@ -548,7 +631,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         {isProcessing && (
           <div className="flex space-x-3 justify-start">
             {getMessageIcon('assistant')}
-            <div className="bg-gray-100 text-gray-900 px-4 py-2 rounded-lg">
+            <div className="bg-gray-50 text-gray-900 px-4 py-3 rounded-lg">
               <div className="flex items-center space-x-2">
                 <Loader className="w-4 h-4 animate-spin" />
                 <span className="text-sm">Processing...</span>
@@ -561,7 +644,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 p-4">
+      <div className="border-t border-gray-100 p-4">
         <form onSubmit={handleSubmit} className="flex items-end space-x-3">
           <div className="flex-1 relative">
             <div className="relative">
@@ -569,7 +652,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Type a message or drag a URL here..."
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent resize-none transition-all duration-200"
                 rows="1"
                 disabled={isProcessing}
                 style={{ minHeight: '44px', maxHeight: '120px' }}
@@ -584,7 +667,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
               />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors duration-200"
               >
                 <Paperclip size={20} />
               </button>
@@ -593,7 +676,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
           <button
             type="submit"
             disabled={!inputValue.trim() || isProcessing}
-            className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="p-3 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <Send size={20} />
           </button>
@@ -602,8 +685,8 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         {/* Policy Status */}
         <div className="mt-2 flex items-center space-x-2 text-xs text-gray-500">
           <Shield className="w-3 h-3" />
-          <span>Policy: {getCurrentUserPolicy().connectionDuration}</span>
-          {getCurrentUserPolicy().autoDisconnect && (
+          <span>Policy: {policyInfo.connectionDuration}</span>
+          {policyInfo.autoDisconnect && (
             <span className="text-gray-600">• Auto-disconnect enabled</span>
           )}
         </div>

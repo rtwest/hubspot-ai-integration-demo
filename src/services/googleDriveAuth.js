@@ -58,6 +58,9 @@ const simulateGoogleOAuth = () => {
 const performGoogleOAuth = () => {
   return new Promise((resolve) => {
     const state = Math.random().toString(36).substr(2, 9)
+    console.log('[DEBUG] OAuth config - clientId:', GOOGLE_CONFIG.clientId ? 'set' : 'not set')
+    console.log('[DEBUG] OAuth config - redirectUri:', GOOGLE_CONFIG.redirectUri)
+    console.log('[DEBUG] OAuth config - scopes:', GOOGLE_CONFIG.scopes)
     const authUrl = `${GOOGLE_CONFIG.authUrl}?` + new URLSearchParams({
       client_id: GOOGLE_CONFIG.clientId,
       redirect_uri: GOOGLE_CONFIG.redirectUri,
@@ -68,36 +71,62 @@ const performGoogleOAuth = () => {
       prompt: 'consent'
     })
 
+    console.log('[DEBUG] Opening Google OAuth popup with URL:', authUrl)
     const popup = window.open(
       authUrl,
       'google-oauth',
       'width=500,height=600,scrollbars=yes,resizable=yes'
     )
 
-    // Remove the problematic popup.closed check entirely
-    // The message listener will handle OAuth completion
+    if (!popup) {
+      console.error('[DEBUG] Failed to open popup - popup blocked')
+      // Popup was blocked - show user-friendly error
+      console.error('[DEBUG] Popup blocked by browser')
+      alert('Popup blocked! Please allow popups for this site and try again.\n\nTo allow popups:\n1. Click the popup blocker icon in your browser\n2. Select "Allow popups for this site"\n3. Try the integration again.')
+      resolve(null)
+      return
+    }
+    console.log('[DEBUG] Popup opened successfully')
 
     // Listen for OAuth completion message
     const messageHandler = (event) => {
+      console.log('[DEBUG] Received message from popup:', event.data)
       if (event.origin !== window.location.origin) return
       if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
+        console.log('[DEBUG] OAuth success, closing popup')
         // Remove the event listener first
         window.removeEventListener('message', messageHandler)
+        popup.close()
         resolve(event.data.tokens)
       } else if (event.data.type === 'GOOGLE_OAUTH_CANCELLED') {
+        console.log('[DEBUG] OAuth cancelled, closing popup')
         // Remove the event listener first
         window.removeEventListener('message', messageHandler)
+        popup.close()
         resolve(null)
       }
     }
     
     window.addEventListener('message', messageHandler)
     
+    // Check if popup was closed manually
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        console.log('[DEBUG] Popup was closed manually')
+        clearInterval(checkClosed)
+        window.removeEventListener('message', messageHandler)
+        resolve(null)
+      }
+    }, 1000)
+    
     // Add a timeout to prevent hanging
     setTimeout(() => {
+      console.log('[DEBUG] OAuth timeout reached, closing popup')
+      clearInterval(checkClosed)
       window.removeEventListener('message', messageHandler)
+      popup.close()
       resolve(null)
-    }, 300000) // 5 minute timeout
+    }, 60000) // 1 minute timeout
   })
 }
 
@@ -111,10 +140,14 @@ export const authenticateWithGoogle = async () => {
     return { success: true, accessToken: tokens.access_token }
   } else {
     console.log('Using real Google OAuth')
+    console.log('[DEBUG] Starting real Google OAuth flow')
     const tokens = await performGoogleOAuth()
+    console.log('[DEBUG] OAuth flow completed, tokens:', tokens ? 'received' : 'none')
     if (tokens) {
+      console.log('[DEBUG] OAuth successful, returning access token')
       return { success: true, accessToken: tokens.access_token }
     } else {
+      console.log('[DEBUG] OAuth failed or cancelled')
       return { success: false, error: 'OAuth was cancelled' }
     }
   }
@@ -140,10 +173,10 @@ async function getCurrentUserId() {
 }
 
 // Create a new file in Google Drive
-export const createGoogleDriveFile = async (content, fileName, accessToken, parentFolderId = null) => {
+export const createGoogleDriveFile = async (content, fileName, accessToken, parentFolderId = null, isReauthAttempt = false) => {
   const targetFolderId = parentFolderId || DEFAULT_GOOGLE_DRIVE_FOLDER_ID;
   const userId = await getCurrentUserId();
-  console.log('Creating Google Drive file:', { fileName, parentFolderId, targetFolderId, isReal: isRealGoogleConfigured() })
+  console.log('Creating Google Drive file:', { fileName, parentFolderId, targetFolderId, isReal: isRealGoogleConfigured(), isReauthAttempt })
   
   if (!isRealGoogleConfigured()) {
     return new Promise((resolve) => {
@@ -191,14 +224,31 @@ export const createGoogleDriveFile = async (content, fileName, accessToken, pare
         accessToken,
         fileName,
         content,
-        parentFolderId: targetFolderId
+        parentFolderId: targetFolderId,
+        isReauthAttempt
       })
     })
 
+    console.log('[DEBUG] Frontend sending request with isReauthAttempt:', isReauthAttempt)
+    console.log('[DEBUG] Frontend request body:', {
+      accessToken: accessToken ? 'present' : 'missing',
+      fileName,
+      content: content ? 'present' : 'missing',
+      parentFolderId: targetFolderId,
+      isReauthAttempt
+    })
+
     if (!response.ok) {
-      const errorText = await response.text()
+      let errorText = await response.text();
+      let backendError = '';
+      try {
+        const errorJson = JSON.parse(errorText);
+        backendError = errorJson.error || '';
+      } catch (e) {
+        backendError = errorText;
+      }
       console.error('Google Drive API error:', response.status, errorText)
-      throw new Error(`Failed to create Google Drive file: ${response.status}`)
+      throw new Error(backendError ? backendError : `Failed to create Google Drive file: ${response.status}`)
     }
 
     const data = await response.json()

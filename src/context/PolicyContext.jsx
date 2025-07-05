@@ -304,70 +304,68 @@ export const PolicyProvider = ({ children }) => {
     }
   }
 
-  // Get current user's policy
-  const getCurrentUserPolicy = () => {
-    const userGroup = policies.userGroups[currentUserGroup]
-    return {
-      ...userGroup,
-      // Override with global ephemeral setting if enabled
-      autoDisconnect: policies.globalEphemeral || userGroup.autoDisconnect,
-      connectionDuration: policies.globalEphemeral ? 'auto-disconnect' : userGroup.connectionDuration
-    }
+  // Add fetchLatestUserPolicy to the context value
+  const fetchLatestUserPolicy = async (currentUserGroup) => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const policies = JSON.parse(localStorage.getItem('policies')) || null;
+        if (policies && policies.userGroups && policies.userGroups[currentUserGroup]) {
+          const userGroup = policies.userGroups[currentUserGroup];
+          resolve({
+            ...userGroup,
+            autoDisconnect: policies.globalEphemeral || userGroup.autoDisconnect,
+            connectionDuration: policies.globalEphemeral ? 'auto-disconnect' : userGroup.connectionDuration
+          });
+        } else {
+          resolve({ autoDisconnect: false, connectionDuration: '24h' });
+        }
+      }, 200);
+    });
   }
 
-  // Check if app is allowed for current user
-  const isAppAllowed = (appKey) => {
-    const userPolicy = getCurrentUserPolicy()
-    const app = policies.approvedApps[appKey]
-    
-    return userPolicy.allowedApps.includes(appKey) && app.status === 'approved'
+  // Refactor isAppAllowed to always check the database
+  const isAppAllowed = async (service) => {
+    // Get current user from Supabase auth
+    const { data: { user } } = await import('../lib/supabase').then(m => m.supabase.auth.getUser());
+    if (!user) return false;
+    // Get user role from users table
+    const { data: userProfile } = await import('../lib/supabase').then(m => m.supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single());
+    const role = userProfile?.role || 'sales';
+    const provider = service === 'google-drive' ? 'google' : service;
+    // Check policy in connection_policies
+    const { data: policy } = await import('../lib/supabase').then(m => m.supabase
+      .from('connection_policies')
+      .select('allowed')
+      .eq('role', role)
+      .eq('provider', provider)
+      .single());
+    return !!(policy && policy.allowed);
   }
 
   const value = {
     policies,
-    currentUserGroup,
-    setCurrentUserGroup,
     updateGlobalEphemeral,
     updateUserGroupPolicy,
     updateApprovedApp,
     addActiveConnection,
     removeActiveConnection,
     emergencyDisconnectAll,
-    getCurrentUserPolicy,
-    isAppAllowed,
     addUserIntegration,
     updateUserIntegrationStatus,
     getUserIntegrationHistory,
-    getAllUsersWithIntegrations
+    getAllUsersWithIntegrations,
+    fetchLatestUserPolicy,
+    isAppAllowed
   }
+  console.log('[DEBUG] PolicyProvider value:', value)
 
   return (
     <PolicyContext.Provider value={value}>
       {children}
     </PolicyContext.Provider>
   )
-}
-
-// Add this function to fetch the latest policy for the current user group
-export const fetchLatestUserPolicy = async (currentUserGroup) => {
-  // Simulate a backend fetch for now (replace with real API call if available)
-  // In a real app, fetch from your backend or Supabase
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // For now, just return the current policy from state
-      // Replace this with a real fetch if you have a backend endpoint
-      const policies = JSON.parse(localStorage.getItem('policies')) || null;
-      if (policies && policies.userGroups && policies.userGroups[currentUserGroup]) {
-        const userGroup = policies.userGroups[currentUserGroup];
-        resolve({
-          ...userGroup,
-          autoDisconnect: policies.globalEphemeral || userGroup.autoDisconnect,
-          connectionDuration: policies.globalEphemeral ? 'auto-disconnect' : userGroup.connectionDuration
-        });
-      } else {
-        // fallback to default
-        resolve({ autoDisconnect: false, connectionDuration: '24h' });
-      }
-    }, 200);
-  });
-}; 
+} 

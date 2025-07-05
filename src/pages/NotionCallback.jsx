@@ -26,14 +26,18 @@ const NotionCallback = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <Loader className="w-8 h-8 animate-spin text-gray-600 mx-auto mb-4" />
-        <h2 className="text-lg font-medium text-gray-900 mb-2">
-          Completing Notion Authorization
-        </h2>
-        <p className="text-sm text-gray-600">
-          Please wait while we complete the connection...
-        </p>
+      <div className="text-center p-8">
+        <div className="w-16 h-16 mx-auto mb-6">
+          <Loader className="w-16 h-16 animate-spin text-gray-600" />
+        </div>
+        <div className="max-w-sm">
+          <h2 className="text-2xl font-medium text-gray-900 mb-3">
+            Connecting to Notion
+          </h2>
+          <p className="text-gray-600 text-base leading-relaxed">
+            Please wait while we complete the authentication process. This window will close automatically.
+          </p>
+        </div>
       </div>
     </div>
   )
