@@ -9,7 +9,8 @@ import {
   AlertCircle,
   ExternalLink,
   Shield,
-  Paperclip
+  Paperclip,
+  Sparkles
 } from 'lucide-react'
 import {
   authenticateNotion,
@@ -268,12 +269,12 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       .single();
     console.log('User ID:', user.id, 'Role:', role, 'Provider:', provider, 'Policy:', policy);
     if (!policy || !policy.allowed) {
-      addMessage(`${service} integration is not allowed for your user group (per Supabase policy).`, 'assistant');
+      addMessage(`${service} integration is not allowed for your user group (per Admin policy).`, 'assistant');
       return;
     }
 
     if (!(await isAppAllowed(service))) {
-      addMessage(`${service} integration is not allowed for your user group.`, 'assistant')
+      addMessage(`${service} integration is not allowed for your user group (per Admin policy).`, 'assistant')
       return
     }
 
@@ -540,12 +541,12 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
   const getMessageIcon = (type) => {
     switch (type) {
       case 'assistant':
-        return <div className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center">
-          <span className="text-white font-medium text-sm">AI</span>
+        return <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+          <Sparkles className="text-[#EF2DF9]" size={24} />
         </div>
       case 'user':
-        return <div className="w-7 h-7 bg-gray-600 rounded-full flex items-center justify-center">
-          <span className="text-white font-medium text-sm">U</span>
+        return <div className="h-8 px-3 bg-black rounded-lg flex items-center justify-center min-w-[56px]">
+          <span className="text-white font-medium text-base">Gabby</span>
         </div>
       default:
         return null
@@ -611,7 +612,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
               className={`max-w-xs lg:max-w-lg xl:max-w-xl px-4 py-3 rounded-lg ${
                 message.type === 'user'
                   ? 'bg-gray-900 text-white'
-                  : 'bg-gray-50 text-gray-900'
+                  : 'bg-white text-gray-900 border border-[#EF2DF9]'
               }`}
             >
               <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
@@ -626,7 +627,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
         {isProcessing && (
           <div className="flex space-x-3 justify-start">
             {getMessageIcon('assistant')}
-            <div className="bg-gray-50 text-gray-900 px-4 py-3 rounded-lg">
+            <div className="bg-white text-gray-900 px-4 py-3 rounded-lg border border-[#EF2DF9]">
               <div className="flex items-center space-x-2">
                 <Loader className="w-4 h-4 animate-spin" />
                 <span className="text-sm">Processing...</span>
@@ -640,7 +641,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
 
       {/* Input Area */}
       <div className="border-t border-gray-100 p-4">
-        <form onSubmit={handleSubmit} className="flex items-end space-x-3">
+        <form onSubmit={handleSubmit} className="flex items-start space-x-3">
           <div className="flex-1 relative">
             <div className="relative">
               <textarea
@@ -671,7 +672,8 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
           <button
             type="submit"
             disabled={!inputValue.trim() || isProcessing}
-            className="p-3 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+            className="p-3 bg-[#EF2DF9] text-white rounded-lg hover:bg-[#d625e6] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md mt-0"
+            style={{ alignSelf: 'flex-start' }}
           >
             <Send size={20} />
           </button>

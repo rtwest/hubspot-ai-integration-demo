@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, MessageSquare, FileText, Download, Share2 } from 'lucide-react';
+import { Plus, MessageSquare, FileText, Download, Share2, Sparkles } from 'lucide-react';
 import ChatInterface from './ChatInterface.jsx';
 import DemoPageViewer from './DemoPageViewer.jsx';
 
@@ -56,20 +56,12 @@ Date: January 15, 2025`,
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <FileText className="text-blue-600" size={20} />
+                    <img src="/MarketingHub_Icon_Gradient_RGB_24px.svg" alt="Campaign Report Icon" className="w-7 h-7 object-contain" />
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-gray-900">{currentFile.name}</h2>
                     <p className="text-sm text-gray-500">{currentFile.type} • {currentFile.size}</p>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                    <Download size={16} />
-                  </button>
-                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                    <Share2 size={16} />
-                  </button>
                 </div>
               </div>
             </div>
@@ -99,17 +91,16 @@ Date: January 15, 2025`,
         {/* Chat Panel - Right Side */}
         {showChat && (
           <div className="w-1/2 p-6">
-            <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+            <div className="h-full bg-white rounded-lg border border-[#EF2DF9] shadow-sm overflow-hidden">
               {/* Chat Panel Header */}
-              <div className="bg-white border-b border-gray-200 px-6 py-4">
+              <div className="bg-white border-b border-[#EF2DF9] px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                      <MessageSquare className="text-white" size={20} />
+                    <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                      <Sparkles className="text-[#EF2DF9]" size={24} />
                     </div>
                     <div>
-                      <h1 className="text-lg font-semibold text-gray-900">AI Assistant</h1>
-                      <p className="text-sm text-gray-500">Ready to help with integrations</p>
+                      <h1 className="text-lg font-semibold text-gray-900">Breeze Assistant</h1>
                     </div>
                   </div>
                   
