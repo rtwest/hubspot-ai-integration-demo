@@ -346,12 +346,6 @@ const AdminView = () => {
             <h1 className="text-lg font-medium text-gray-900">Admin Dashboard</h1>
             <p className="text-sm text-gray-500">Manage connection policies and monitor integrations</p>
           </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <Activity className="w-4 h-4" />
-            <span>
-              {policies.activeConnections.length} active connections
-            </span>
-          </div>
         </div>
       </div>
 
@@ -534,13 +528,6 @@ const AdminView = () => {
           {/* User Group Policies */}
           <div className="card p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-6">User Group Policies</h3>
-            {/* User Role Debug Info */}
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="text-sm text-blue-800">
-                <strong>Debug Info:</strong> Current User Role: <span className="font-mono">{userRole || 'loading...'}</span> | 
-                Admin Status: <span className="font-mono">{isAdmin ? 'Yes' : 'No'}</span>
-              </div>
-            </div>
             {/* Status message */}
             {saveStatus && (
               <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${

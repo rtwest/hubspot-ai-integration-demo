@@ -10,7 +10,8 @@ import {
   ExternalLink,
   Shield,
   Paperclip,
-  Sparkles
+  Sparkles,
+  Plug
 } from 'lucide-react'
 import {
   authenticateNotion,
@@ -654,30 +655,38 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
                 style={{ minHeight: '44px', maxHeight: '120px' }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (inputValue.trim() && !isProcessing) {
-                      handleSubmit(e);
-                    }
+                    handleSubmit(e)
                   }
                 }}
               />
               <button
                 type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+                aria-label="Attach file"
               >
-                <Paperclip size={20} />
+                <Paperclip className="w-5 h-5" />
               </button>
             </div>
           </div>
           <button
             type="submit"
             disabled={!inputValue.trim() || isProcessing}
-            className="p-3 bg-[#EF2DF9] text-white rounded-lg hover:bg-[#d625e6] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md mt-0"
+            className="p-3 bg-[#EF2DF9] text-white rounded-lg hover:bg-[#d625e6] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 align-top"
             style={{ alignSelf: 'flex-start' }}
           >
-            <Send size={20} />
+            <Send className="w-5 h-5" />
           </button>
         </form>
+        {/* Persistent Drop Zone Below Input */}
+        <div
+          className={`mt-3 flex items-center justify-center h-[56px] rounded-lg bg-[#FCE6FA] transition-all duration-200 ${isDragOver ? 'shadow-lg' : ''}`}
+          onDrop={e => { e.preventDefault(); handleDrop(e); }}
+          onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+          onDragLeave={e => { e.preventDefault(); setIsDragOver(false); }}
+        >
+          <Plug className={`transition-all duration-200 ${isDragOver ? 'text-[#EF2DF9] scale-125 drop-shadow-lg' : 'text-[#EF2DF9] scale-100'}`} size={isDragOver ? 40 : 32} />
+        </div>
         
         {/* Policy Status */}
         <div className="mt-2 flex items-center space-x-2 text-xs text-gray-500">

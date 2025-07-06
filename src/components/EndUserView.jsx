@@ -55,7 +55,7 @@ Date: January 15, 2025`,
             <div className="bg-gray-50 border-b border-gray-200 px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center">
                     <img src="/MarketingHub_Icon_Gradient_RGB_24px.svg" alt="Campaign Report Icon" className="w-7 h-7 object-contain" />
                   </div>
                   <div>
@@ -72,17 +72,6 @@ Date: January 15, 2025`,
                 <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">
                   {currentFile.content}
                 </pre>
-              </div>
-              
-              {/* Integration Instructions */}
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <h3 className="text-sm font-medium text-blue-900 mb-2">💡 Sales Team Integrations Available:</h3>
-                <div className="space-y-2 text-sm text-blue-800">
-                  <p>• Type <span className="font-mono bg-blue-100 px-2 py-1 rounded">"send this to Notion"</span> in the chat</p>
-                  <p>• Type <span className="font-mono bg-blue-100 px-2 py-1 rounded">"save this to Google Drive"</span> in the chat</p>
-                  <p>• Drag a Notion or Google Drive URL into the chat</p>
-                  <p className="text-xs text-blue-700 mt-3">🔗 Connections stay active for 24 hours per Sales team policy</p>
-                </div>
               </div>
             </div>
           </div>
@@ -125,16 +114,6 @@ Date: January 15, 2025`,
             </div>
           </div>
         )}
-      </div>
-
-      {/* Demo Page Viewer Button */}
-      <div className="p-6 pt-0">
-        <button
-          onClick={() => setShowDemoViewer(true)}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-        >
-          View Demo Notion Pages
-        </button>
       </div>
 
       {/* Demo Page Viewer Modal */}
