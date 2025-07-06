@@ -559,48 +559,11 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       {/* Messages Area */}
       <div 
         ref={chatContainerRef}
-        className={`flex-1 overflow-y-auto p-4 space-y-4 transition-all duration-200 ${
-          isDragOver ? 'bg-gray-50 border-2 border-dashed border-gray-200' : ''
-        }`}
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          console.log('Drag enter detected');
-          // Set cursor to pointer for visual feedback
-          e.currentTarget.style.cursor = 'pointer'
-          // Add drag-over class for visual indicator
-          e.currentTarget.classList.add('drag-over')
-        }}
+        className="flex-1 overflow-y-auto p-4 space-y-4 transition-all duration-200"
         style={{
           minHeight: '300px' // Ensure minimum height for drop area
         }}
       >
-        {isDragOver && (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-gray-600" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-            </div>
-            <p className="text-gray-900 font-medium text-lg">Drop to Connect!</p>
-            <p className="text-gray-600 text-sm mt-1">Drop a Notion or Google Drive URL to share content</p>
-          </div>
-        )}
-        
-        {!isDragOver && messages.length === 1 && (
-          <div className="text-center py-8 text-gray-500">
-            <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-              </svg>
-            </div>
-            <p className="text-gray-600 font-normal">Drop Zone Active</p>
-            <p className="text-gray-500 text-sm mt-1">Drag a Notion or Google Drive URL here to test</p>
-          </div>
-        )}
-        
         {messages.map((message) => (
           <div
             key={message.id}
@@ -624,7 +587,6 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
             {message.type === 'user' && getMessageIcon('user')}
           </div>
         ))}
-        
         {isProcessing && (
           <div className="flex space-x-3 justify-start">
             {getMessageIcon('assistant')}
@@ -636,7 +598,6 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
             </div>
           </div>
         )}
-        
         <div ref={messagesEndRef} />
       </div>
 
@@ -685,7 +646,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
           onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
           onDragLeave={e => { e.preventDefault(); setIsDragOver(false); }}
         >
-          <Plug className={`transition-all duration-200 ${isDragOver ? 'text-[#EF2DF9] scale-125 drop-shadow-lg' : 'text-[#EF2DF9] scale-100'}`} size={isDragOver ? 40 : 32} />
+          <Plug className={`transition-all duration-200 ${isDragOver ? 'text-[#EF2DF9] scale-125 drop-shadow-lg' : 'text-[#EF2DF9] scale-100'}`} size={isDragOver ? 28 : 20} />
         </div>
         
         {/* Policy Status */}
