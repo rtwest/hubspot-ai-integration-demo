@@ -86,12 +86,13 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const addMessage = (content, type = 'user') => {
+  const addMessage = (content, type = 'user', metadata = {}) => {
     const newMessage = {
       id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type,
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
+      ...metadata
     }
     setMessages(prev => [...prev, newMessage])
   }
@@ -482,6 +483,17 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
     }
   }
 
+  const getAppName = (service) => {
+    switch (service) {
+      case 'notion':
+        return 'Notion'
+      case 'google-drive':
+        return 'Google Drive'
+      default:
+        return service
+    }
+  }
+
   const handleDrop = (e) => {
     e.preventDefault()
     setIsDragOver(false)
@@ -499,12 +511,23 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
       return
     }
 
-    addMessage(`Dropped URL: ${url}`, 'user')
+    // Determine service and create app-specific message
+    let service = null
+    if (isNotionUrl(url)) {
+      service = 'notion'
+    } else if (isGoogleDriveUrl(url)) {
+      service = 'google-drive'
+    }
 
-    // Determine service and handle integration
-    console.log('Checking if Notion URL:', isNotionUrl(url))
-    console.log('Checking if Google Drive URL:', isGoogleDriveUrl(url))
-    
+    if (service) {
+      const appName = getAppName(service)
+      const appIcon = getAppIcon(service, 'w-4 h-4')
+      addMessage(`Dropped ${appName} URL`, 'user', { appIcon, appName })
+    } else {
+      addMessage('Dropped URL: Invalid destination', 'user')
+    }
+
+    // Handle integration
     if (isNotionUrl(url)) {
       console.log('Processing Notion integration')
       handleIntegration('notion', url)
@@ -579,7 +602,14 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
                   : 'bg-white text-gray-900 border border-[#EF2DF9]'
               }`}
             >
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              <div className="flex items-center space-x-2">
+                {message.appIcon && (
+                  <div className="flex-shrink-0">
+                    {message.appIcon}
+                  </div>
+                )}
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              </div>
               <p className="text-xs opacity-60 mt-2">
                 {message.timestamp.toLocaleTimeString()}
               </p>
@@ -646,7 +676,7 @@ const ChatInterface = ({ uploadedFile, fileContent }) => {
           onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
           onDragLeave={e => { e.preventDefault(); setIsDragOver(false); }}
         >
-          <Plug className={`transition-all duration-200 ${isDragOver ? 'text-[#EF2DF9] scale-125 drop-shadow-lg' : 'text-[#EF2DF9] scale-100'}`} size={isDragOver ? 28 : 20} />
+          <Plug className={`transition-all duration-200 ${isDragOver ? 'text-[#EF2DF9] scale-150 drop-shadow-lg' : 'text-[#EF2DF9] scale-100'}`} size={isDragOver ? 36 : 20} />
         </div>
         
         {/* Policy Status */}
